@@ -13,8 +13,8 @@ export default fp(
     await fastify.register(fastifySwagger, {
       openapi: {
         info: {
-          title: "OGCIO Fastify Scaffolding API",
-          description: "API for OGCIO Fastify Scaffolding",
+          title: "GovIE Messaging API Gateway",
+          description: "Public facing APIs to access MessagingIE features",
           version: (await getPackageInfo()).version,
         },
         components: {

@@ -1,4 +1,4 @@
-# OGCIO Fastify Scaffolding
+# GovIE MessagingIE API Gateway
 
 A production-ready Node.js API scaffolding built with Fastify, featuring TypeScript, OpenAPI documentation, and comprehensive observability tooling.
 
@@ -20,10 +20,6 @@ A production-ready Node.js API scaffolding built with Fastify, featuring TypeScr
 ### Installation
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd fastify-scaffolding
-
 # Install dependencies
 pnpm install
 ```
@@ -31,18 +27,6 @@ pnpm install
 ### Environment Configuration
 
 Copy the `.env.sample` to `.env` file and set your values.
-
-### Database Setup
-
-**Please note**: if you want to enable PG integration, go to [PG plugin](./src/plugins/external/pg.ts) and uncomment the code there.
-
-```bash
-# Create database
-pnpm db:create
-
-# Run migrations
-pnpm db:migrate
-```
 
 ### Development
 
@@ -121,11 +105,11 @@ pnpm run test:watch
 ### Building the Image
 
 ```bash
-docker build -t fastify-scaffolding:latest --build-arg "PORT={your port}" .
+docker build -t messaging-api-gateway:latest --build-arg "PORT={your port}" .
 ```
 
 ### Running with Docker
 
 ```bash
-docker run -p {your port}:{your port} --env-file .env --name fastify-scaffolding --rm fastify-scaffolding:latest
+docker run -p {your port}:{your port} --env-file .env --name messaging-api-gateway --rm messaging-api-gateway:latest
 ```

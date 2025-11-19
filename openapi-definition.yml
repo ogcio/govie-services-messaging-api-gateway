@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
-  title: OGCIO Fastify Scaffolding API
-  description: API for OGCIO Fastify Scaffolding
+  title: GovIE Messaging API Gateway
+  description: Public facing APIs to access MessagingIE features
   version: 0.1.0
 components:
   securitySchemes:
