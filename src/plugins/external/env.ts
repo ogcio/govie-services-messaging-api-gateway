@@ -13,22 +13,6 @@ interface EnvKey {
   required: boolean;
 }
 
-export interface EnvDbConfig {
-  POSTGRES_USER: string;
-  POSTGRES_PASSWORD: string;
-  POSTGRES_HOST: string;
-  POSTGRES_PORT: number;
-  POSTGRES_DATABASE: string;
-}
-
-const EnvDbConfigKeys: Record<string, EnvKey> = {
-  POSTGRES_USER: { type: "string", required: true },
-  POSTGRES_PASSWORD: { type: "string", required: true },
-  POSTGRES_HOST: { type: "string", required: true },
-  POSTGRES_PORT: { type: "number", required: true },
-  POSTGRES_DATABASE: { type: "string", required: true },
-};
-
 export interface BasicEnvConfig {
   PORT: number;
   FASTIFY_CLOSE_GRACE_DELAY: number;
@@ -55,13 +39,9 @@ const InstrumentationEnvConfigKeys: Record<string, EnvKey> = {
   OTEL_LOG_LEVEL: { type: "string", default: "ERROR", required: false },
 };
 
-export interface EnvConfig
-  extends EnvDbConfig,
-    BasicEnvConfig,
-    InstrumentationEnvConfig {}
+export interface EnvConfig extends BasicEnvConfig, InstrumentationEnvConfig {}
 
 export const EnvKeys: Record<string, EnvKey> = {
-  ...EnvDbConfigKeys,
   ...BasicEnvConfigKeys,
   ...InstrumentationEnvConfigKeys,
 };

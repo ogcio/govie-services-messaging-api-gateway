@@ -1,11 +1,10 @@
 # OGCIO Fastify Scaffolding
 
-A production-ready Node.js API scaffolding built with Fastify, featuring TypeScript, PostgreSQL integration, OpenAPI documentation, and comprehensive observability tooling.
+A production-ready Node.js API scaffolding built with Fastify, featuring TypeScript, OpenAPI documentation, and comprehensive observability tooling.
 
 ## Features
 
 - **Type Safety**: Full TypeScript support with TypeBox schema validation
-- **Database Ready**: PostgreSQL integration with migration scripts
 - **API Documentation**: Auto-generated OpenAPI/Swagger documentation
 - **Observability**: Integrated logging, metrics, and tracing with OpenTelemetry
 - **Testing**: Complete test suite with Vitest and testcontainers
@@ -14,7 +13,6 @@ A production-ready Node.js API scaffolding built with Fastify, featuring TypeScr
 ## Prerequisites
 
 - Node.js >= 22.0.0
-- PostgreSQL database
 - pnpm (recommended) or npm
 
 ## Getting Started
@@ -108,7 +106,6 @@ The project includes comprehensive testing with:
 
 - **Unit Tests**: Component and utility testing
 - **Integration Tests**: Full API endpoint testing
-- **Test Containers**: Isolated PostgreSQL testing environment
 - **Coverage Reports**: Detailed code coverage analysis
 
 ```bash

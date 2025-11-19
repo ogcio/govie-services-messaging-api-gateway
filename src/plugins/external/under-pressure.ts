@@ -8,14 +8,16 @@ export const autoConfig = {
   maxRssBytes: v8.getHeapStatistics().total_available_size,
   maxEventLoopUtilization: 0.98,
   pressureHandler: (
-    _req: FastifyRequest,
+    req: FastifyRequest,
     rep: FastifyReply,
     type: string,
     value: number | string | undefined | null,
   ) => {
-    throw rep.serviceUnavailable(
-      `System is under pressure. Pressure type: ${type}. Pressure value: ${value}`,
-    );
+    req.log.warn({ type, value }, "SYSTEM_UNDER_PRESSURE");
+
+    rep
+      .status(503)
+      .send({ message: "System under pressure, please retry later" });
   },
 };
 
