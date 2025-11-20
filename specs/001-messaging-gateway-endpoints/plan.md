@@ -7,7 +7,7 @@
 
 ## Summary
 
-This feature implements a secure API gateway enabling authenticated public servants (users with organizationId) to interact with downstream services (profile-api, messaging-api, upload-api) through a unified entry point. The gateway provides three core capabilities: (1) sending messages with file attachments to citizens after verifying profile relationships, (2) querying latest message events with filtering and pagination, and (3) retrieving complete event history for specific messages. The technical approach leverages Fastify's plugin architecture with strict TypeScript, TypeBox schema validation, OpenAPI documentation generation, and the Building Blocks SDK for downstream service communication with token forwarding.
+This feature implements a secure API gateway enabling authenticated public servants (users with organizationId) to interact with downstream services (profile-api, messaging-api, upload-api) through a unified entry point. The gateway provides three core capabilities: (1) sending messages with file attachments to citizens after verifying profile relationships, (2) querying latest message events with filtering and pagination, and (3) retrieving complete event history for specific messages. The technical approach leverages Fastify's plugin architecture with strict TypeScript, TypeBox schema validation, OpenAPI documentation generation, and the Building Blocks SDK for downstream service communication with token forwarding. Clarifications incorporated: atomic failure handling for attachments with cleanup (FR-030/FR-031, SC-007, SC-008), transient error retry policy (FR-032) using exponential backoff w/ jitter (3 attempts only on 502/503/504/timeouts), delegated scheduling horizon (FR-033), authoritative downstream `totalCount` forwarding (FR-034), and a 95% cleanup success reliability target (SC-008).
 
 ## Technical Context
 
@@ -19,7 +19,15 @@ This feature implements a secure API gateway enabling authenticated public serva
 **Project Type**: Single project (API gateway service)  
 **Performance Goals**: <200ms p95 latency for typical requests, handle parallel downstream API calls, support 1000+ concurrent authenticated users  
 **Constraints**: <200ms p95 response time, maintain 99.9% uptime during business hours, zero tolerance for authentication bypasses, all responses must be valid OpenAPI-documented JSON  
-**Scale/Scope**: 3 routes (POST /v1/messages, GET /v1/messages/events, GET /v1/messages/:messageId/events), 3 downstream service integrations, multipart form-data support for attachments
+**Scale/Scope**: 3 routes (POST /v1/messages, GET /v1/messages/events, GET /v1/messages/:messageId/events), 3 downstream service integrations, multipart form-data support for attachments  
+**Attachment Failure Semantics**: Atomic – any upload/share failure before message dispatch aborts operation; best-effort cleanup deletes uploaded attachments (FR-030, FR-031, SC-007, SC-008)  
+**Cleanup Reliability Target**: ≥95% successful attachment deletions in atomic failure cases (SC-008) logged for observability  
+**Retry Policy**: Exponential backoff (base 100ms, full jitter) max 3 attempts ONLY for transient downstream errors (502, 503, 504, timeouts); no retries on 4xx (FR-032)  
+**Scheduling Horizon**: Gateway does not cap future `scheduled_at`; only validates format and past/immediate send behavior (FR-033)  
+**Pagination totalCount Source**: Forward downstream `totalCount` unchanged; no secondary counting or inference (FR-034)  
+**Parallelization**: Phase 1 (profile lookup + multipart parsing), Phase 2 (parallel uploads), Phase 3 (parallel share), followed by message send – all using Promise.all with defensive error aggregation  
+**Observability Additions**: Structured logs for retry attempts, cleanup success/failure, per-phase timing metrics (message_send_duration, profile_lookup_duration, upload_phase_duration, cleanup_duration)  
+**Open Questions (Deferred)**: Data volume upper bounds, rate limiting strategy, concurrency conflict resolution, encryption/rest retention policies – to be addressed in a non-functional enhancement pass.
 
 ## Constitution Check
 
@@ -103,7 +111,7 @@ src/
 │   ├── message-orchestration.ts        # Orchestrates profile, messaging, upload calls
 │   ├── profile-service.ts              # Profile API operations (lookup, relationship mgmt)
 │   ├── messaging-service.ts            # Messaging API operations (send, query events)
-│   └── upload-service.ts               # Upload API operations (upload, share)
+│   └── upload-service.ts               # Upload API operations (upload, share, cleanup delete on failure)
 ├── schemas/
 │   ├── message.ts                      # Message-related TypeBox schemas
 │   ├── recipient.ts                    # Recipient identification schemas
@@ -112,7 +120,8 @@ src/
 ├── utils/
 │   ├── token-forwarding.ts             # Extract and forward auth tokens to SDK
 │   ├── multipart-handler.ts            # Handle multipart form-data parsing
-│   └── pagination.ts                   # Already exists, pagination utilities
+│   ├── pagination.ts                   # Already exists, pagination utilities (extend with HATEOAS links)
+│   └── retry.ts                        # Encapsulate transient error retry/backoff logic
 ├── types/
 │   ├── fastify.d.ts                    # Already exists, may need extension
 │   └── building-blocks-sdk.d.ts        # Type definitions for SDK responses
@@ -130,12 +139,35 @@ src/test/
 │   ├── message-orchestration.test.ts   # Unit tests for orchestration logic
 │   ├── profile-service.test.ts         # Unit tests for profile operations
 │   ├── messaging-service.test.ts       # Unit tests for messaging operations
-│   └── upload-service.test.ts          # Unit tests for upload operations
+│   └── upload-service.test.ts          # Unit tests for upload operations & cleanup
+├── utils/
+│   └── retry.test.ts                   # Unit tests for retry logic (transient vs non-retryable)
 └── contracts/
     └── message-routes.test.ts          # Contract tests validating OpenAPI schemas
 ```
 
 **Structure Decision**: Using the existing **single project** structure (Option 1 from template). This is a pure API gateway with no frontend or mobile components. The structure follows established Fastify conventions: routes for HTTP handlers, services for business logic, schemas for validation, utils for cross-cutting concerns, and types for TypeScript definitions. The test directory mirrors the source structure for easy navigation.
+
+## Clarifications Incorporated
+
+| Area | Added Items |
+|------|-------------|
+| Atomic Failure | FR-030, FR-031, SC-007 updated, SC-008 (95% cleanup) |
+| Retry Policy | FR-032 (exponential backoff, transient only) |
+| Scheduling Horizon | FR-033 (delegated, no cap) |
+| Pagination Count | FR-034 (downstream authoritative) |
+| Observability | SC-008 metric logging requirement |
+
+## Implementation Adjustments After Clarification
+
+1. Add `retry.ts` utility encapsulating backoff + jitter logic with classification of retryable status codes.
+2. Enhance `upload-service.ts` with cleanup deletion function and structured logging of each deletion attempt.
+3. Extend orchestration flow to aggregate failed uploads/shares and trigger cleanup before returning error.
+4. Add metrics hooks (timers) around phases and cleanup.
+5. Update pagination utility to include HATEOAS links while trusting downstream `totalCount`.
+6. Tests: Add failure simulation tests (upload failure, share failure, transient 503 with successful retry, non-retryable 401 immediate failure, cleanup success/failure percentage tracking stub).
+7. Logging: Ensure correlationId, organizationId, attempt number included in retry logs.
+8. Documentation: Quickstart and contracts remain valid; add note about retry & cleanup behavior to quickstart if needed.
 
 ## Complexity Tracking
 
