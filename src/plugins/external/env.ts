@@ -39,11 +39,39 @@ const InstrumentationEnvConfigKeys: Record<string, EnvKey> = {
   OTEL_LOG_LEVEL: { type: "string", default: "ERROR", required: false },
 };
 
-export interface EnvConfig extends BasicEnvConfig, InstrumentationEnvConfig {}
+export interface LogtoEnvConfig {
+  LOGTO_JWK_ENDPOINT: string;
+  LOGTO_OIDC_ENDPOINT: string;
+}
+
+const LogtoEnvConfigKeys: Record<string, EnvKey> = {
+  LOGTO_JWK_ENDPOINT: { type: "string", required: true },
+  LOGTO_OIDC_ENDPOINT: { type: "string", required: true },
+};
+
+export interface BuildingBlocksSdkEnvConfig {
+  PROFILE_API_URL: string;
+  UPLOAD_API_URL: string;
+  MESSAGING_API_URL: string;
+}
+
+const BuildingBlocksSdkEnvConfigKeys: Record<string, EnvKey> = {
+  PROFILE_API_URL: { type: "string", required: true },
+  UPLOAD_API_URL: { type: "string", required: true },
+  MESSAGING_API_URL: { type: "string", required: true },
+};
+
+export interface EnvConfig
+  extends BasicEnvConfig,
+    InstrumentationEnvConfig,
+    LogtoEnvConfig,
+    BuildingBlocksSdkEnvConfig {}
 
 export const EnvKeys: Record<string, EnvKey> = {
   ...BasicEnvConfigKeys,
   ...InstrumentationEnvConfigKeys,
+  ...LogtoEnvConfigKeys,
+  ...BuildingBlocksSdkEnvConfigKeys,
 };
 
 const allKeys = Object.keys(EnvKeys);
