@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-messaging-gateway-endpoints`  
 **Created**: 2025-11-20  
-**Status**: Draft  
+**Status**: Draft (will move to Ready after remediation)  
 **Input**: User description: "I want to build an API Gateway that makes public servant users (ones that have organizationId set in their user data) able to use, from a single entry point, our downstream APIs, profile-api, messaging-api, upload-api. It needs to communicate with them using our building blocks sdk. It must be secure, but must delegate the permissions check to the downstream APIs, it just has to ensure users are logged as public servants in to perform actions."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -104,7 +104,7 @@ A public servant needs to view the complete event history for a specific message
 - **FR-015**: System MUST upload each attachment using the upload-api
 - **FR-016**: System MUST share uploaded attachments with the recipient
 - **FR-017**: System MUST return HTTP 201 on successful message creation with messageId, recipientId, and attachmentIds
-- **FR-018**: System MUST return appropriate HTTP error codes for validation failures, service errors, and business rule violations
+- **FR-018**: System MUST map each failure category to explicit HTTP status codes documented in the Error Mapping Matrix and MUST NOT emit undocumented status codes
 
 #### Message Event Querying
 
@@ -138,9 +138,10 @@ A public servant needs to view the complete event history for a specific message
 
 ### Measurable Outcomes
 
-- **SC-001**: Public servants can send a message with attachments in under 5 seconds under normal load conditions
+- **SC-001a**: Typical send-message requests without attachments (or ≤2 small attachments <250KB each) complete with p95 latency <200ms and p99 <400ms under ≤50 concurrent requests.
+- **SC-001b**: Attachment-heavy send-message requests (≤5 attachments totaling ≤25MB) complete end-to-end in <5s p95 and <7s p99 under ≤50 concurrent requests.
 - **SC-002**: Message event queries return results in under 2 seconds for result sets up to 1000 messages
-- **SC-003**: System maintains 99.9% uptime during business hours (9am-5pm local time)
+- **SC-003**: System maintains 99.9% uptime during business hours (09:00–17:00 Europe/Dublin timezone) (public holiday handling deferred)
 - **SC-004**: All API responses comply with defined HTTP status codes and response structure
 - **SC-005**: 100% of authenticated requests from users without organizationId are rejected with HTTP 401
 - **SC-006**: System successfully handles message sending when recipient exists but lacks organization relationship (creates relationship automatically)
@@ -178,6 +179,8 @@ A public servant needs to view the complete event history for a specific message
 - Added scheduling horizon clarification: gateway does not cap future `scheduled_at` (delegated) and MUST only enforce past-time immediate send behavior.
 - Added pagination totalCount source clarification (FR-034) to rely solely on downstream messaging-api provided counts.
 - Added cleanup success reliability metric (SC-008) to quantify effectiveness of atomic failure cleanup.
+- Added performance split (SC-001a / SC-001b) replacing previous ambiguous SC-001.
+- Added uptime timezone clarification (SC-003).
 
 ### Additional Functional Requirements (Atomic Attachment Handling)
 
@@ -203,3 +206,111 @@ A public servant needs to view the complete event history for a specific message
 3. **Given** a transient downstream error (HTTP 503) occurs during an attachment upload, **When** the gateway retries with exponential backoff and the next attempt succeeds, **Then** the message send continues and ultimately returns HTTP 201.
 4. **Given** a downstream messaging-api returns HTTP 401 for a send attempt, **When** the gateway processes the error, **Then** it does NOT retry and returns HTTP 401 immediately.
 5. **Given** a public servant schedules a message 18 months in the future, **When** the gateway validates the request, **Then** it accepts the timestamp (format only), forwards it to messaging-api, and relies on downstream validation (no local horizon cap).
+6. **Given** a PPSN+DOB lookup yields multiple matching profiles, **When** the gateway detects the ambiguity, **Then** it returns HTTP 409 with error code `recipient_conflict` and DOES NOT send the message.
+7. **Given** an attachment exceeds downstream limits and upload-api returns 413, **When** the gateway receives the response, **Then** it forwards 413 with `attachment_limit_exceeded` error code and aborts with no retries.
+8. **Given** a transient 503 occurs during upload and succeeds after one retry, **When** the operation completes, **Then** the send continues and returns HTTP 201 while logs show retryAttempt=1.
+9. **Given** a transient failure persists through all retries (three attempts), **When** the final attempt fails, **Then** the gateway returns the last 503 (or 502/504) with `transient_failure`.
+10. **Given** cleanup success rate falls below 95% (rolling 30-day window) for the first time in an hour, **When** breach detection runs, **Then** a `cleanup_breach` log and metric increment are emitted.
+
+---
+
+## Additional Functional Requirements (New)
+
+### Recipient Profile Conflict Handling
+
+- **FR-035**: If multiple profile records match a PPSN+DOB recipient lookup (conflict), the gateway MUST return HTTP 409 with error code `recipient_conflict`, MUST NOT attempt disambiguation, and MUST NOT create organization relationship or send message.
+
+### Attachment Size/Count Delegation
+
+- **FR-036**: The gateway MUST delegate attachment count and size limit enforcement to upload-api. On receiving 413 or documented limit error from upload-api, the gateway MUST forward the status and error body unchanged (with standard error wrapper only) and MUST NOT retry.
+
+### Cleanup Breach Alerting
+
+- **FR-037**: When rolling 30-day cleanup success rate (SC-008 metric) drops below 95%, the gateway MUST emit a structured log event `cleanup_breach` and increment metric `cleanup_breach_count` (minimum 1-hour detection granularity).
+
+### Standard Error Response Schema
+
+- **FR-038**: All error responses MUST conform to schema:
+  - `error.code` (string, kebab-case, required)
+  - `error.message` (string, human-readable, EN, required)
+  - `error.status` (integer HTTP status, required)
+  - `error.details` (object/array for field-level issues, optional)
+  - `error.timestamp` (ISO-8601 UTC, required)
+  - List endpoints MAY include `metadata` if partial context relevant.
+
+### Retry Backoff Precision
+
+- **FR-039**: Retry delays MUST follow nominal sequence [100ms, 200ms, 400ms] with full jitter (±50% bounds); cumulative nominal delay <1s. Logs MUST include fields: `retryAttempt`, `delayMs`, `operation`, `errorStatus`.
+
+## Extended Success Criteria
+
+- **SC-009**: On cleanup breach (<95% success), system emits breach log and increments metric within 5 minutes of detection.
+- **SC-010**: 100% of error responses include required fields per FR-038; contract tests cover each major category (validation, auth, conflict, not_found, atomic_failure, transient_failure, attachment_limit).
+- **SC-011**: 100% of transient retry attempts produce structured log entries with required fields (retryAttempt, delayMs, operation, errorStatus).
+- **SC-012**: Forwarded `totalCount` equals downstream value (bitwise equality) in 100% of tested pagination scenarios (FR-034).
+
+## Error Mapping Matrix
+
+| Endpoint | Condition | HTTP Status | error.code | Notes |
+|----------|-----------|-------------|------------|-------|
+| POST /v1/messages | Success | 201 | message_created | Contains messageId, recipientId, attachmentIds |
+| POST /v1/messages | Validation failure (schema) | 400 | validation_error | No retry |
+| POST /v1/messages | Auth missing | 401 | auth_missing | No retry |
+| POST /v1/messages | Org missing | 401 | org_missing | No retry |
+| POST /v1/messages | Recipient not found | 404 | recipient_not_found | No retry |
+| POST /v1/messages | Recipient conflict (multiple PPSN) | 409 | recipient_conflict | Abort, no retry |
+| POST /v1/messages | Attachment limit exceeded | 413 | attachment_limit_exceeded | Forwarded from upload-api |
+| POST /v1/messages | Transient failure (retries exhausted) | 502/503/504 | transient_failure | Last downstream status |
+| POST /v1/messages | Atomic cleanup partial failure | 500 | cleanup_partial_failure | Message not sent; log details |
+| POST /v1/messages | Internal orchestration error | 500 | internal_error | Unexpected processing error |
+| GET /v1/messages/events | Success | 200 | events_list | Includes metadata.totalCount |
+| GET /v1/messages/events | Validation failure (filters) | 400 | validation_error | No retry |
+| GET /v1/messages/events | Auth/Org missing | 401 | auth_missing / org_missing | No retry |
+| GET /v1/messages/events | Transient failure (exhausted) | 502/503/504 | transient_failure | Last status |
+| GET /v1/messages/:id/events | Success | 200 | history_list | Chronological events |
+| GET /v1/messages/:id/events | Message not found | 404 | message_not_found | No retry |
+| GET /v1/messages/:id/events | Auth/Org missing | 401 | auth_missing / org_missing | No retry |
+| Any endpoint | Rate limit (future) | 429 | rate_limited | Enhancement placeholder |
+| Any endpoint | Unexpected exception | 500 | internal_error | Catch-all |
+
+## Metrics Definitions
+
+| Metric Name | Unit | Description |
+|-------------|------|-------------|
+| message_send_duration | ms | End-to-end latency from request to response for successful POST /v1/messages |
+| profile_lookup_duration | ms | Profile lookup phase time |
+| upload_phase_duration | ms | Aggregate parallel uploads window latency |
+| cleanup_duration | ms | Attachment cleanup deletion phase latency |
+| cleanup_breach_count | count | Number of cleanup success rate breach detections (<95%) |
+
+**Required Structured Log Fields** (minimum): `timestamp`, `requestId`, `correlationId`, `organizationId`, `phase`, `retryAttempt` (if retry), `delayMs` (if retry), `operation`, `error.code`, `error.status`, `cleanupDeletedCount`, `cleanupAttemptedCount`.
+
+## Error Response Schema Example
+
+```json
+{
+  "error": {
+    "code": "recipient_conflict",
+    "message": "Multiple recipient profiles matched PPSN/DOB; cannot disambiguate.",
+    "status": 409,
+    "timestamp": "2025-11-20T10:15:30.123Z",
+    "details": {"matchedProfiles": 2}
+  }
+}
+```
+
+## Retry Backoff Example
+
+Nominal delays (pre-jitter): 100ms, 200ms, 400ms.  
+Example with jitter applied: 73ms, 295ms, 420ms.  
+Jitter bounds: each delay randomized within [50% of nominal, 150% of nominal].
+
+## Cleanup Success Rate Calculation
+
+```
+successRate = totalSuccessfulDeletions / totalDeletionAttempts
+```
+
+Measured over rolling 30-day window of atomic failure cases only.  
+Breach threshold: `successRate < 0.95`  
+Detection interval: Minimum 1 hour granularity.
