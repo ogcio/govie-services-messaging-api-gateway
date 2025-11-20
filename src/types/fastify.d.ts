@@ -1,8 +1,13 @@
-// biome-ignore lint/correctness/noUnusedImports: Needed to make fastify able to merge all
-import { FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyReply, FastifyRequest } from "fastify";
 
 declare module "fastify" {
   export interface FastifyInstance {
     dirname: string;
+    checkPermissions: (
+      request: FastifyRequest,
+      reply: FastifyReply,
+      permissions: string[],
+      matchConfig?: { method: "AND" | "OR" },
+    ) => Promise<void>;
   }
 }
