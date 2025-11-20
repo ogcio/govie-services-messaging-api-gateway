@@ -28,7 +28,7 @@ importers:
         version: 5.2.3
       '@fastify/type-provider-typebox':
         specifier: ^6.1.0
-        version: 6.1.0(typebox@1.0.53)
+        version: 6.1.0(typebox@1.0.55)
       '@fastify/under-pressure':
         specifier: ^9.0.3
         version: 9.0.3
@@ -50,9 +50,6 @@ importers:
       '@ogcio/shared-errors':
         specifier: ^1.1.0
         version: 1.1.0
-      '@sinclair/typebox':
-        specifier: ^0.34.41
-        version: 0.34.41
       close-with-grace:
         specifier: ^2.3.0
         version: 2.3.0
@@ -68,6 +65,9 @@ importers:
       postgrator:
         specifier: ^8.0.0
         version: 8.0.0
+      typebox:
+        specifier: ^1.0.55
+        version: 1.0.55
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.3.6
@@ -2448,8 +2448,8 @@ packages:
     resolution: {integrity: sha512-TkRKr9sUTxEH8MdfuCSP7VizJyzRNMjj2J2do2Jr3Kym598JVdEksuzPQCnlFPW4ky9Q+iA+ma9BGm06XQBy8g==}
     engines: {node: '>= 0.6'}
 
-  typebox@1.0.53:
-    resolution: {integrity: sha512-fCi3wnKP4owdhs+LRIUfkPzR4p5RLa3tM4O6gqO7TeAo6SsamvqA59yPb1GyKDcCgB/ClmifVJ9BqQ128a4uvQ==}
+  typebox@1.0.55:
+    resolution: {integrity: sha512-TP02wN0B6tDZngprrGVu/Z9s/QUyVEmR7VIg1yEOtsqyDdXXEoQPSfWdkD2PsA2lGLxu6GgwOTtGZVS9CAoERg==}
 
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
@@ -3312,9 +3312,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@fastify/type-provider-typebox@6.1.0(typebox@1.0.53)':
+  '@fastify/type-provider-typebox@6.1.0(typebox@1.0.55)':
     dependencies:
-      typebox: 1.0.53
+      typebox: 1.0.55
 
   '@fastify/under-pressure@9.0.3':
     dependencies:
@@ -5504,7 +5504,7 @@ snapshots:
       media-typer: 0.3.0
       mime-types: 2.1.35
 
-  typebox@1.0.53: {}
+  typebox@1.0.55: {}
 
   typescript@5.9.3: {}
 

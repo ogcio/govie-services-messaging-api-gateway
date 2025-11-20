@@ -29,12 +29,12 @@
     "@ogcio/fastify-logging-wrapper": "^5.3.0",
     "@ogcio/o11y-sdk-node": "^0.6.2",
     "@ogcio/shared-errors": "^1.1.0",
-    "@sinclair/typebox": "^0.34.41",
     "close-with-grace": "^2.3.0",
     "fastify": "^5.6.2",
     "fastify-plugin": "^5.1.0",
     "jose": "^6.1.2",
-    "postgrator": "^8.0.0"
+    "postgrator": "^8.0.0",
+    "typebox": "^1.0.55"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.6",
