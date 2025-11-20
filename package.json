@@ -24,6 +24,7 @@
     "@fastify/type-provider-typebox": "^6.1.0",
     "@fastify/under-pressure": "^9.0.3",
     "@ogcio/api-auth": "^5.2.1",
+    "@ogcio/building-blocks-sdk": "^0.2.67",
     "@ogcio/fastify-error-handler": "^5.2.1",
     "@ogcio/fastify-logging-wrapper": "^5.3.0",
     "@ogcio/o11y-sdk-node": "^0.6.2",
