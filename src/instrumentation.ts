@@ -1,4 +1,4 @@
-import { type SDKLogLevel, instrumentNode } from "@ogcio/o11y-sdk-node";
+import { instrumentNode, type SDKLogLevel } from "@ogcio/o11y-sdk-node";
 
 if (
   process.env.OTEL_COLLECTOR_URL &&
