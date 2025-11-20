@@ -527,3 +527,5 @@ Once quickstart validation is complete:
 - Organization-level data isolation is handled transparently by the Building Blocks SDK
 - File uploads are streamed to minimize memory usage
 - Pagination uses limit/offset with HATEOAS links for easy navigation
+- **Retry behavior** (FR-032, FR-039): Transient errors (502/503/504, ETIMEDOUT, ECONNRESET) are retried up to 3 times with exponential backoff [100ms, 200ms, 400ms] and ±50% jitter; all 4xx client errors fail immediately
+- **Cleanup behavior** (FR-031, SC-008): If any attachment upload or sharing fails during message dispatch, the gateway performs best-effort deletion of all previously uploaded attachments before returning an error; cleanup success rate target is ≥95% (SC-008); cleanup failures are logged with breach alerts (FR-037, SC-009)

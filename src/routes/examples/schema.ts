@@ -1,4 +1,4 @@
-import { type Static, Type } from "@sinclair/typebox";
+import { type Static, Type } from "typebox";
 import { getGenericResponseSchema } from "../../schemas/generic-response.js";
 import { HttpError } from "../../schemas/http-error.js";
 import { PaginationParamsSchema } from "../../schemas/pagination.js";

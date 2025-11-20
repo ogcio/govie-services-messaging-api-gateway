@@ -1,4 +1,4 @@
-import { type Static, Type } from "@sinclair/typebox";
+import { type Static, Type } from "typebox";
 import {
   PAGINATION_LIMIT_DEFAULT,
   PAGINATION_MAX_LIMIT,
@@ -56,3 +56,7 @@ export const PaginationLinksSchema = Type.Object(
   },
   { description: "Object containing the links to the related endpoints" },
 );
+
+export type PaginationLinks = Static<typeof PaginationLinksSchema>;
+
+// PaginatedResponseSchema removed in favor of GenericResponse pattern (data + optional metadata)

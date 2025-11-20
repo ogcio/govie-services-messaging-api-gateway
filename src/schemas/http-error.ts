@@ -1,4 +1,4 @@
-import { Type } from "@sinclair/typebox";
+import { Type } from "typebox";
 
 export const HttpError = Type.Object({
   code: Type.String({ description: "Code used to categorize the error" }),
