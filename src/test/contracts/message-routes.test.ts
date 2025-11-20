@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { messagingRouteSchemas } from "../../routes/messages/schema.js";
 import { buildTestServer } from "../build-test-server.js";
 
 /**
@@ -9,7 +10,7 @@ import { buildTestServer } from "../build-test-server.js";
  * Spec: US1, US2, US3
  */
 
-describe("Message Routes - Contract Tests", () => {
+describe("Message Routes - Contract Tests (Phase 2)", () => {
   let server: FastifyInstance;
 
   beforeAll(async () => {
@@ -20,59 +21,61 @@ describe("Message Routes - Contract Tests", () => {
     await server.close();
   });
 
-  describe("POST /v1/messages", () => {
-    it("should validate request schema for message send", async () => {
-      // Placeholder - will be implemented in Phase 5 (T091)
-      expect(server).toBeDefined();
-    });
-
-    it("should return 201 with correct response schema on success", async () => {
-      // Placeholder - will be implemented in Phase 5 (T091)
-      expect(server).toBeDefined();
-    });
-
-    it("should return 400 for invalid request body", async () => {
-      // Placeholder - will be implemented in Phase 5 (T091)
-      expect(server).toBeDefined();
-    });
-
-    it("should return 404 when recipient not found", async () => {
-      // Placeholder - will be implemented in Phase 5 (T091)
-      expect(server).toBeDefined();
-    });
+  it("registers all messaging routes", () => {
+    const printed = server.printRoutes();
+    // Autoload directory prefix results in 'messages/v1/messages'
+    expect(printed).toContain("messages/v1/messages (POST)");
+    // Events listing route
+    expect(printed).toMatch(/events \(GET, HEAD\)/);
+    // History route (same events string appears twice; ensure parameter path present)
+    expect(printed).toContain(
+      ":messageId\n                └── /events (GET, HEAD)",
+    );
   });
 
-  describe("GET /v1/messages/events", () => {
-    it("should validate pagination query parameters", async () => {
-      // Placeholder - will be implemented in Phase 5 (T092)
-      expect(server).toBeDefined();
-    });
-
-    it("should return 200 with paginated response schema", async () => {
-      // Placeholder - will be implemented in Phase 5 (T092)
-      expect(server).toBeDefined();
-    });
-
-    it("should include HATEOAS links in response", async () => {
-      // Placeholder - will be implemented in Phase 5 (T092)
-      expect(server).toBeDefined();
-    });
+  it("aggregated schemas expose expected response codes", () => {
+    const sendCodes = Object.keys(messagingRouteSchemas.sendMessage.response);
+    expect(sendCodes).toEqual(
+      expect.arrayContaining([
+        "201",
+        "400",
+        "401",
+        "403",
+        "404",
+        "409",
+        "413",
+        "500",
+        "502",
+        "503",
+        "504",
+      ]),
+    );
+    const eventsCodes = Object.keys(
+      messagingRouteSchemas.getMessageEvents.response,
+    );
+    expect(eventsCodes).toEqual(
+      expect.arrayContaining(["200", "401", "403", "500"]),
+    );
+    const historyCodes = Object.keys(
+      messagingRouteSchemas.getMessageHistory.response,
+    );
+    expect(historyCodes).toEqual(
+      expect.arrayContaining(["200", "401", "403", "404", "500"]),
+    );
   });
 
-  describe("GET /v1/messages/:messageId/events", () => {
-    it("should validate messageId parameter format", async () => {
-      // Placeholder - will be implemented in Phase 5 (T093)
-      expect(server).toBeDefined();
-    });
+  it("sendMessage schema includes body and 201 response", () => {
+    expect(messagingRouteSchemas.sendMessage.body).toBeDefined();
+    expect(messagingRouteSchemas.sendMessage.response[201]).toBeDefined();
+  });
 
-    it("should return 200 with event history schema", async () => {
-      // Placeholder - will be implemented in Phase 5 (T093)
-      expect(server).toBeDefined();
-    });
+  it("events schema includes querystring pagination", () => {
+    expect(messagingRouteSchemas.getMessageEvents.querystring).toBeDefined();
+    expect(messagingRouteSchemas.getMessageEvents.response[200]).toBeDefined();
+  });
 
-    it("should return 404 when message not found", async () => {
-      // Placeholder - will be implemented in Phase 5 (T093)
-      expect(server).toBeDefined();
-    });
+  it("history schema includes params and 200 response", () => {
+    expect(messagingRouteSchemas.getMessageHistory.params).toBeDefined();
+    expect(messagingRouteSchemas.getMessageHistory.response[200]).toBeDefined();
   });
 });

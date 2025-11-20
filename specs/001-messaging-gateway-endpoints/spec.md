@@ -314,3 +314,73 @@ successRate = totalSuccessfulDeletions / totalDeletionAttempts
 Measured over rolling 30-day window of atomic failure cases only.  
 Breach threshold: `successRate < 0.95`  
 Detection interval: Minimum 1 hour granularity.
+
+## Additional Edge Case Clarifications (2025-11-20 Addendum)
+
+### Pagination Edge Cases
+
+The following rules MUST apply for pagination responses (FR-021, FR-022, FR-034):
+
+1. Zero Results: When downstream returns an empty set and `totalCount = 0`, the gateway MUST respond with `data: []` and:
+  - `metadata.totalCount = 0`
+  - `metadata.limit` and `metadata.offset` echo request values (sanitized)
+  - `metadata.links.first = metadata.links.last = /v1/messages/events?limit=<limit>&offset=0`
+  - `metadata.links.previous = null`, `metadata.links.next = null`
+2. Single Page (totalCount ≤ limit): MUST follow the same link semantics as zero results (first=last, previous=null, next=null) with `offset` preserved.
+3. Middle Pages: `previous` MUST be the URL with `offset - limit` (never <0); `next` MUST be the URL with `offset + limit` (capped at last page start offset); `first` MUST always point to offset=0; `last` MUST point to the highest valid starting offset (`floor((totalCount-1)/limit)*limit`).
+4. Out-of-Range Offset (client supplies offset ≥ totalCount and totalCount >0): Gateway MUST normalize offset down to last page start offset and log a structured warning `pagination_offset_normalized` with fields (`requestedOffset`, `normalizedOffset`).
+5. Preserving Filters: All generated links MUST preserve original filter query parameters exactly (recipientId, recipientEmail, subject, startDate, endDate).
+6. Null/Undefined totalCount: If downstream omits `totalCount` or returns null/undefined for a list endpoint, gateway MUST treat this as a contract violation and return HTTP 500 with `error.code = internal_error` (see FR-040). It MUST NOT silently infer or substitute a computed value.
+
+### Downstream totalCount Contract Enforcement
+
+The gateway MUST enforce presence of `totalCount` in downstream list payloads. Absence indicates incompatible downstream response version.
+
+### Token Forwarding & SDK Error Shape
+
+Authorization propagation and error mapping consistency are critical:
+
+1. Incoming `Authorization: Bearer <token>` header MUST be forwarded unchanged to all downstream SDK calls (FR-041).
+2. If the SDK exposes an error object `{ statusCode, message, code, details? }`, gateway MUST map it directly into the standard error schema (FR-038) without altering `statusCode` or semantic meaning of `code`.
+3. Missing `Authorization` MUST produce HTTP 401 locally (auth_missing) before any downstream calls.
+4. Gateway MUST NOT add or remove scopes/claims; responsibility remains downstream.
+5. For correlation, all downstream error logs MUST include `correlationId` and `organizationId` if available.
+
+### Recipient Conflict Resolution Clarification
+
+Conflict scenario (multiple profiles for PPSN+DOB) is treated as terminal:
+- Gateway MUST NOT attempt heuristics to select a profile.
+- MUST return HTTP 409 (`recipient_conflict`).
+- MUST log structured event `recipient_conflict_detected` with `matchedCount`.
+
+### Scheduling Far-Future Clarification
+
+Messages scheduled arbitrarily far in the future (years ahead) are accepted locally (format + past/immediate rule only) and forwarded verbatim. No horizon cap will be added without future requirements.
+
+### Additional Functional Requirements (Edge Enforcement)
+
+- **FR-040**: Gateway MUST return HTTP 500 (`internal_error`) when required downstream pagination field `totalCount` is missing/null/undefined for list endpoints.
+- **FR-041**: Gateway MUST forward the inbound `Authorization` header unchanged to every Building Blocks SDK request; if forwarding fails (header absent in outbound), the gateway MUST abort and log `auth_forwarding_error` with HTTP 500.
+
+### Observability Additions
+
+New structured log events (all include base fields + correlationId, organizationId, requestId):
+- `pagination_offset_normalized` (requestedOffset, normalizedOffset, limit, totalCount)
+- `recipient_conflict_detected` (ppsNumber, dateOfBirth, matchedCount)
+- `auth_forwarding_error` (reason)
+- `totalCount_missing` (endpoint, downstreamService)
+
+### Test Coverage Expectations (Addendum)
+
+Contract/Unit tests MUST cover:
+1. Zero result pagination link formation.
+2. Single page pagination link formation.
+3. Offset normalization behavior.
+4. totalCount missing → 500 internal_error.
+5. Token forwarding verified (presence in downstream mock request capture).
+6. Recipient conflict returns 409 with expected error schema.
+
+### Non-Functional Extension
+
+Performance tests SHOULD include one pagination scenario with offset normalization to ensure negligible additional latency (<5ms overhead).
+

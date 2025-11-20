@@ -28,6 +28,22 @@ export interface CleanupResult {
   successRate: number;
 }
 
+export interface UploadService {
+  uploadFile(
+    request: FastifyRequest,
+    file: MultipartFile,
+  ): Promise<UploadResult>;
+  shareFile(
+    request: FastifyRequest,
+    uploadId: string,
+    recipientProfileId: string,
+  ): Promise<ShareResult>;
+  cleanupFiles(
+    request: FastifyRequest,
+    uploadIds: string[],
+  ): Promise<CleanupResult>;
+}
+
 /**
  * Upload a single file
  *
@@ -73,4 +89,12 @@ export async function cleanupFiles(
 ): Promise<CleanupResult> {
   // Placeholder - will be implemented in Phase 3 (T058)
   throw new Error("Not implemented");
+}
+
+export function createUploadService(): UploadService {
+  return {
+    uploadFile,
+    shareFile,
+    cleanupFiles,
+  };
 }

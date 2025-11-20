@@ -20,6 +20,18 @@ export interface ProfileLookupError {
   message: string;
 }
 
+export interface ProfileLookupResponse {
+  resolved: ProfileLookupResult[];
+  errors: ProfileLookupError[];
+}
+
+export interface ProfileService {
+  lookupProfiles(
+    request: FastifyRequest,
+    identifiers: string[],
+  ): Promise<ProfileLookupResponse>;
+}
+
 /**
  * Resolve multiple PPSN identifiers to profile IDs
  *
@@ -30,10 +42,13 @@ export interface ProfileLookupError {
 export async function lookupProfiles(
   _request: FastifyRequest,
   _identifiers: string[],
-): Promise<{
-  resolved: ProfileLookupResult[];
-  errors: ProfileLookupError[];
-}> {
-  // Placeholder - will be implemented in Phase 3 (T046)
+): Promise<ProfileLookupResponse> {
+  // Base stub (Phase 2): interface layer only
   throw new Error("Not implemented");
+}
+
+export function createProfileService(): ProfileService {
+  return {
+    lookupProfiles,
+  };
 }
