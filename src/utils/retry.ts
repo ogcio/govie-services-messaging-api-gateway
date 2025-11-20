@@ -16,6 +16,10 @@ export interface RetryOptions {
   maxAttempts?: number;
   baseDelayMs?: number;
   onRetry?: (attempt: number, delayMs: number, error: RetryableError) => void;
+  logger?: {
+    info: (msg: string, meta?: Record<string, unknown>) => void;
+    error?: (msg: string, meta?: Record<string, unknown>) => void;
+  };
 }
 
 /**
@@ -64,7 +68,7 @@ export async function executeWithRetry<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {},
 ): Promise<T> {
-  const { maxAttempts = 3, baseDelayMs = 100, onRetry } = options;
+  const { maxAttempts = 3, baseDelayMs = 100, onRetry, logger } = options;
 
   let lastError: RetryableError;
 
@@ -84,6 +88,15 @@ export async function executeWithRetry<T>(
 
       if (onRetry) {
         onRetry(attempt + 1, delayMs, lastError);
+      }
+      if (logger) {
+        logger.info("retry_attempt", {
+          attempt: attempt + 1,
+          maxAttempts,
+          delayMs,
+          errorCode: lastError.code,
+          statusCode: lastError.statusCode,
+        });
       }
 
       await new Promise((resolve) => setTimeout(resolve, delayMs));
