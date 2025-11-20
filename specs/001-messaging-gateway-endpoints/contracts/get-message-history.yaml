@@ -1,0 +1,200 @@
+openapi: 3.0.3
+info:
+  title: Get Message Event History
+  version: 1.0.0
+  description: |
+    Retrieve the complete event history for a specific message.
+    Results are automatically filtered by the authenticated user's organizationId.
+
+paths:
+  /v1/messages/{messageId}/events:
+    get:
+      summary: Get all events for a specific message
+      description: |
+        Returns all events for a specific message in chronological order.
+        Results are automatically scoped to the authenticated user's organization
+        (messages from other organizations will return 404).
+      tags:
+        - messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique identifier of the message
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+      responses:
+        '200':
+          description: Successfully retrieved message event history
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - messageId
+                      - subject
+                      - recipientId
+                      - recipientEmail
+                      - events
+                    properties:
+                      messageId:
+                        type: string
+                        format: uuid
+                        description: Unique identifier for the message
+                        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      
+                      subject:
+                        type: string
+                        description: Subject of the message
+                        example: "Important update regarding your application"
+                      
+                      recipientId:
+                        type: string
+                        description: Profile ID of the recipient
+                        example: "profile-12345"
+                      
+                      recipientEmail:
+                        type: string
+                        format: email
+                        description: Email address of the recipient
+                        example: "john.doe@example.ie"
+                      
+                      events:
+                        type: array
+                        description: All events for this message in chronological order
+                        items:
+                          $ref: '#/components/schemas/MessageEvent'
+        
+        '400':
+          description: Bad request - invalid messageId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "Invalid UUID format for messageId parameter"
+                  statusCode: 400
+                  code: "VALIDATION_ERROR"
+        
+        '401':
+          description: Unauthorized - missing or invalid authentication, or user lacks organizationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "No organization ID found in user data"
+                  statusCode: 401
+                  code: "UNAUTHORIZED"
+        
+        '404':
+          description: Message not found or belongs to different organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "Message not found"
+                  statusCode: 404
+                  code: "MESSAGE_NOT_FOUND"
+        
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "An unexpected error occurred while processing your request"
+                  statusCode: 500
+                  code: "INTERNAL_SERVER_ERROR"
+        
+        '502':
+          description: Bad gateway - downstream service error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "Downstream service (messaging-api) returned an error"
+                  statusCode: 502
+                  code: "BAD_GATEWAY"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    MessageEvent:
+      type: object
+      required:
+        - eventType
+        - timestamp
+      properties:
+        eventType:
+          type: string
+          description: Type of event
+          example: "delivered"
+          enum:
+            - queued
+            - sent
+            - delivered
+            - read
+            - failed
+            - bounced
+            - retrying
+        
+        timestamp:
+          type: string
+          format: date-time
+          description: When the event occurred (ISO 8601)
+          example: "2025-11-20T14:35:22Z"
+        
+        details:
+          type: object
+          description: Optional event-specific details
+          additionalProperties: true
+          example:
+            deliveryAttempts: 1
+            smtpResponse: "250 OK"
+            ipAddress: "192.0.2.1"
+    
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - message
+            - statusCode
+            - code
+          properties:
+            message:
+              type: string
+              description: Human-readable error message
+            statusCode:
+              type: integer
+              description: HTTP status code
+            code:
+              type: string
+              description: Machine-readable error code

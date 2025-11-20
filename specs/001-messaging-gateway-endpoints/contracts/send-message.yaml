@@ -1,0 +1,310 @@
+openapi: 3.0.3
+info:
+  title: Send Message with Attachments
+  version: 1.0.0
+  description: |
+    Send a message to a recipient with optional file attachments.
+    Requires authenticated public servant with organizationId.
+
+paths:
+  /v1/messages:
+    post:
+      summary: Send a message to a recipient
+      description: |
+        Sends a message to a citizen recipient, optionally including file attachments.
+        The system verifies the recipient exists and has a relationship with the sender's organization.
+        If the recipient exists but lacks an organization relationship, and sufficient data is provided,
+        the relationship is created automatically.
+      tags:
+        - messages
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - subject
+                - plainTextBody
+                - securityLevel
+                - language
+                - scheduledAt
+                - recipient
+              properties:
+                subject:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  description: Subject line of the message
+                  example: "Important update regarding your application"
+                
+                plainTextBody:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                  description: Plain text body content (required even if HTML provided)
+                  example: "Your application has been processed. Please check your dashboard for details."
+                
+                htmlBody:
+                  type: string
+                  minLength: 1
+                  maxLength: 50000
+                  description: Optional HTML formatted body content
+                  example: "<p>Your application has been <strong>processed</strong>. Please check your <a href='https://example.com/dashboard'>dashboard</a> for details.</p>"
+                
+                securityLevel:
+                  type: string
+                  enum: [confidential, public]
+                  description: Security classification of the message
+                  example: "confidential"
+                
+                language:
+                  type: string
+                  enum: [en, ga]
+                  description: Language of the message content
+                  example: "en"
+                
+                scheduledAt:
+                  type: string
+                  format: date-time
+                  description: |
+                    ISO 8601 datetime when the message should be sent.
+                    If in the past or present, sends immediately.
+                    If in the future, schedules for that time.
+                  example: "2025-11-20T14:30:00Z"
+                
+                recipient:
+                  oneOf:
+                    - $ref: '#/components/schemas/RecipientByEmail'
+                    - $ref: '#/components/schemas/RecipientByIdentity'
+                  description: Recipient identification (either email-based or identity-based)
+                
+                attachments:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: string
+                    format: binary
+                  description: Optional file attachments (max 10 files, 50MB each)
+
+      responses:
+        '201':
+          description: Message successfully sent
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                properties:
+                  data:
+                    type: object
+                    required:
+                      - messageId
+                      - recipientId
+                      - attachmentIds
+                    properties:
+                      messageId:
+                        type: string
+                        format: uuid
+                        description: Unique identifier for the sent message
+                        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                      
+                      recipientId:
+                        type: string
+                        description: Profile ID of the recipient
+                        example: "profile-12345"
+                      
+                      attachmentIds:
+                        type: array
+                        items:
+                          type: string
+                          format: uuid
+                        description: IDs of uploaded and shared attachments
+                        example: ["file-uuid-1", "file-uuid-2"]
+        
+        '400':
+          description: Bad request - validation error or insufficient recipient data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validationError:
+                  value:
+                    error:
+                      message: "Validation failed: subject must be between 1 and 200 characters"
+                      statusCode: 400
+                      code: "VALIDATION_ERROR"
+                insufficientData:
+                  value:
+                    error:
+                      message: "Cannot create organization relationship: insufficient recipient data provided"
+                      statusCode: 400
+                      code: "INSUFFICIENT_RECIPIENT_DATA"
+        
+        '401':
+          description: Unauthorized - missing or invalid authentication, or user lacks organizationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "No organization ID found in user data"
+                  statusCode: 401
+                  code: "UNAUTHORIZED"
+        
+        '404':
+          description: Recipient not found in profile system
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "Recipient not found in profile system"
+                  statusCode: 404
+                  code: "RECIPIENT_NOT_FOUND"
+        
+        '413':
+          description: Payload too large - file size exceeds limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "File size exceeds maximum allowed (50MB)"
+                  statusCode: 413
+                  code: "PAYLOAD_TOO_LARGE"
+        
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "An unexpected error occurred while processing your request"
+                  statusCode: 500
+                  code: "INTERNAL_SERVER_ERROR"
+        
+        '502':
+          description: Bad gateway - downstream service error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "Downstream service (messaging-api) returned an error"
+                  statusCode: 502
+                  code: "BAD_GATEWAY"
+        
+        '503':
+          description: Service unavailable - downstream service unreachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "Downstream service temporarily unavailable"
+                  statusCode: 503
+                  code: "SERVICE_UNAVAILABLE"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    RecipientByEmail:
+      type: object
+      required:
+        - type
+        - firstName
+        - lastName
+        - email
+      properties:
+        type:
+          type: string
+          enum: [email]
+          description: Identification method discriminator
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Recipient's first name
+          example: "John"
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Recipient's last name
+          example: "Doe"
+        email:
+          type: string
+          format: email
+          description: Recipient's email address
+          example: "john.doe@example.ie"
+        ppsn:
+          type: string
+          pattern: '^[0-9]{7}[A-Z]{1,2}$'
+          description: Optional Personal Public Service Number
+          example: "1234567A"
+        dateOfBirth:
+          type: string
+          format: date
+          description: Optional date of birth (YYYY-MM-DD)
+          example: "1980-05-15"
+    
+    RecipientByIdentity:
+      type: object
+      required:
+        - type
+        - ppsn
+        - dateOfBirth
+      properties:
+        type:
+          type: string
+          enum: [identity]
+          description: Identification method discriminator
+        ppsn:
+          type: string
+          pattern: '^[0-9]{7}[A-Z]{1,2}$'
+          description: Personal Public Service Number
+          example: "1234567A"
+        dateOfBirth:
+          type: string
+          format: date
+          description: Date of birth (YYYY-MM-DD)
+          example: "1980-05-15"
+    
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - message
+            - statusCode
+            - code
+          properties:
+            message:
+              type: string
+              description: Human-readable error message
+            statusCode:
+              type: integer
+              description: HTTP status code
+            code:
+              type: string
+              description: Machine-readable error code

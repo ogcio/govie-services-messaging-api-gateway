@@ -144,7 +144,8 @@ A public servant needs to view the complete event history for a specific message
 - **SC-004**: All API responses comply with defined HTTP status codes and response structure
 - **SC-005**: 100% of authenticated requests from users without organizationId are rejected with HTTP 401
 - **SC-006**: System successfully handles message sending when recipient exists but lacks organization relationship (creates relationship automatically)
-- **SC-007**: Message sending operations complete end-to-end (profile lookup, relationship check/creation, upload attachments, send message) with rollback on partial failures
+- **SC-007**: Message sending operations complete end-to-end (profile lookup, relationship check/creation, upload attachments, send message) and if any attachment upload or share fails BEFORE message dispatch, the gateway performs best-effort cleanup (delete uploaded attachments) and DOES NOT send the message (atomic failure)
+- **SC-008**: In ≥95% of atomic attachment failure cases (upload/share failure before dispatch) all previously uploaded attachments are successfully deleted (rolling 30-day window), with structured logging of cleanup outcomes for observability.
 
 ## Assumptions
 
@@ -158,3 +159,47 @@ A public servant needs to view the complete event history for a specific message
 - Pagination uses standard limit/offset or cursor-based pagination
 - Attachment file size limits are enforced by the upload-api, not the gateway
 - Message scheduling is handled by the messaging-api, not the gateway
+
+## Clarifications
+
+### Session 2025-11-20
+
+- Q: How should partial failures (e.g., one attachment upload/share fails) be handled during send-message orchestration? → A: Fail whole request; perform best-effort cleanup of any successfully uploaded attachments; do not send the message.
+- Q: What retry strategy should the gateway apply to transient downstream HTTP errors? → A: Exponential backoff (base 100ms, full jitter) with up to 3 total attempts only for transient errors (HTTP 502, 503, 504, network timeouts). No retries MUST be performed for client/auth errors (all 4xx including 400, 401, 403, 404) because they are not recoverable.
+- Q: What maximum future horizon should be enforced for `scheduled_at`? → A: No explicit limit enforced by gateway; validation and rejection of overly distant scheduling delegated entirely to messaging-api.
+- Q: What is the authoritative source for pagination `totalCount` values? → A: Downstream messaging-api responses; gateway MUST forward provided `totalCount` unchanged without performing extra count requests or heuristic inference.
+- Q: What success metric should quantify attachment cleanup reliability? → A: 95% cleanup success target (rolling 30-day window) for atomic attachment failure cases.
+
+### Applied Changes
+
+- Added atomic failure rule to **SC-007** clarifying rollback semantics.
+- Will introduce new functional requirement for atomic attachment handling.
+- Added retry resilience requirements (FR-032) scoping retries to transient downstream failures only.
+- Added scheduling horizon clarification: gateway does not cap future `scheduled_at` (delegated) and MUST only enforce past-time immediate send behavior.
+- Added pagination totalCount source clarification (FR-034) to rely solely on downstream messaging-api provided counts.
+- Added cleanup success reliability metric (SC-008) to quantify effectiveness of atomic failure cleanup.
+
+### Additional Functional Requirements (Atomic Attachment Handling)
+
+- **FR-030**: If any attachment upload fails, the gateway MUST abort the operation, attempt to delete any already-uploaded attachments, and return an error (message not sent).
+- **FR-031**: If any attachment share operation fails, the gateway MUST abort sending the message, attempt cleanup (delete uploads that were shared or partially shared), and return an error (message not sent).
+
+### Additional Functional Requirements (Retry & Resilience)
+
+- **FR-032**: The gateway MUST apply an exponential backoff with full jitter (initial delay 100ms, capped cumulative delay < 1s) for up to 3 attempts ONLY on transient downstream failures (HTTP 502, 503, 504, and network timeouts). It MUST NOT retry on any 4xx client/auth errors (including 400 validation, 401 unauthorized, 403 forbidden, 404 not found). After exhausting retries, it MUST surface the last error with appropriate HTTP status code.
+
+### Additional Functional Requirements (Scheduling Horizon Delegation)
+
+- **FR-033**: The gateway MUST NOT enforce a maximum future scheduling horizon for `scheduled_at`; it MUST only validate timestamp format and apply immediate send behavior for past timestamps, delegating distant future acceptance/rejection to the messaging-api.
+
+### Additional Functional Requirements (Pagination Count Source)
+
+- **FR-034**: The gateway MUST use the `totalCount` value returned by the messaging-api (or corresponding downstream endpoint) directly, forwarding it unchanged in responses without issuing supplemental count queries or deriving estimates.
+
+### New Acceptance Scenario (User Story 1)
+
+1. **Given** a public servant sends a message with multiple attachments and one upload fails, **When** the failure occurs, **Then** the gateway aborts, cleans up uploaded attachments, does NOT send the message, and returns an appropriate error (HTTP 502/500 depending on failure source).
+2. **Given** a public servant sends a message and all uploads succeed but one share call fails, **When** the share failure occurs, **Then** the gateway aborts, cleans up uploaded attachments, does NOT send the message, and returns an appropriate error.
+3. **Given** a transient downstream error (HTTP 503) occurs during an attachment upload, **When** the gateway retries with exponential backoff and the next attempt succeeds, **Then** the message send continues and ultimately returns HTTP 201.
+4. **Given** a downstream messaging-api returns HTTP 401 for a send attempt, **When** the gateway processes the error, **Then** it does NOT retry and returns HTTP 401 immediately.
+5. **Given** a public servant schedules a message 18 months in the future, **When** the gateway validates the request, **Then** it accepts the timestamp (format only), forwards it to messaging-api, and relies on downstream validation (no local horizon cap).
