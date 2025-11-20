@@ -14,13 +14,33 @@ export const autoConfig = (
     jwkEndpoint: fastify.config.LOGTO_JWK_ENDPOINT,
     oidcEndpoint: fastify.config.LOGTO_OIDC_ENDPOINT,
     storeLocalJwkSetFn: (jwkSet: JSONWebKeySet): Promise<void> => {
-      fastify.nodeCache?.set(JWKS_CACHE_KEY, jwkSet, JWKS_CACHE_TTL);
+      if (!fastify.nodeCache) {
+        fastify.log.debug("[storeLocalJwkSetFn] Node cache is not initialized");
+        return Promise.resolve();
+      }
+
+      fastify.nodeCache.set(JWKS_CACHE_KEY, jwkSet, JWKS_CACHE_TTL);
+
       return Promise.resolve();
     },
     getLocalJwksFn: (): JSONWebKeySet | undefined => {
-      const cachedJwks = fastify.nodeCache?.get(JWKS_CACHE_KEY) as
+      if (!fastify.nodeCache) {
+        fastify.log.debug("[getLocalJwksFn] Node cache is not initialized");
+        return undefined;
+      }
+      if (!fastify.nodeCache.has(JWKS_CACHE_KEY)) {
+        fastify.log.debug("[getLocalJwksFn] No JWKS found in node cache");
+        return undefined;
+      }
+
+      const cachedJwks = fastify.nodeCache.get(JWKS_CACHE_KEY) as
         | JSONWebKeySet
         | undefined;
+
+      fastify.log.debug(
+        "[getLocalJwksFn] Returning cached JWKS from node cache",
+      );
+
       return cachedJwks;
     },
   };
