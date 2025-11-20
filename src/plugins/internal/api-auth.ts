@@ -1,13 +1,28 @@
-import apiAuthPlugin from "@ogcio/api-auth";
+import apiAuthPlugin, {
+  type CheckPermissionsPluginOpts,
+} from "@ogcio/api-auth";
 import type { FastifyInstance } from "fastify";
+import type { JSONWebKeySet } from "jose";
 
-export const autoConfig = (fastify: FastifyInstance) => {
+const JWKS_CACHE_KEY = "logto_jwks_key";
+const JWKS_CACHE_TTL = 60 * 5; // 5 minutes
+
+export const autoConfig = (
+  fastify: FastifyInstance,
+): CheckPermissionsPluginOpts => {
   return {
     jwkEndpoint: fastify.config.LOGTO_JWK_ENDPOINT,
     oidcEndpoint: fastify.config.LOGTO_OIDC_ENDPOINT,
-    // Used to be the audience value to check into the token, but we are not using it
-    // It was supposed to be used here https://docs.logto.io/authorization/api-resources/node-express
-    // currentApiResourceIndicator: fastify.config.LOGTO_CURRENT_API_RESOURCE_INDICATOR as string,
+    storeLocalJwkSetFn: (jwkSet: JSONWebKeySet): Promise<void> => {
+      fastify.nodeCache?.set(JWKS_CACHE_KEY, jwkSet, JWKS_CACHE_TTL);
+      return Promise.resolve();
+    },
+    getLocalJwksFn: (): JSONWebKeySet | undefined => {
+      const cachedJwks = fastify.nodeCache?.get(JWKS_CACHE_KEY) as
+        | JSONWebKeySet
+        | undefined;
+      return cachedJwks;
+    },
   };
 };
 

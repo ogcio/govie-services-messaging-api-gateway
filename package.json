@@ -15,6 +15,7 @@
     "test": "NODE_OPTIONS='--import tsx' vitest run --reporter junit --reporter default --coverage --outputFile=results.xml"
   },
   "dependencies": {
+    "@cacheable/node-cache": "^1.7.5",
     "@fastify/autoload": "^6.3.1",
     "@fastify/env": "^5.0.3",
     "@fastify/sensible": "^6.0.3",
@@ -22,7 +23,7 @@
     "@fastify/swagger-ui": "^5.2.3",
     "@fastify/type-provider-typebox": "^6.1.0",
     "@fastify/under-pressure": "^9.0.3",
-    "@ogcio/api-auth": "^5.1.2",
+    "@ogcio/api-auth": "^5.2.1",
     "@ogcio/fastify-error-handler": "^5.2.1",
     "@ogcio/fastify-logging-wrapper": "^5.3.0",
     "@ogcio/o11y-sdk-node": "^0.6.2",
@@ -31,6 +32,7 @@
     "close-with-grace": "^2.3.0",
     "fastify": "^5.6.2",
     "fastify-plugin": "^5.1.0",
+    "jose": "^6.1.2",
     "postgrator": "^8.0.0"
   },
   "devDependencies": {
