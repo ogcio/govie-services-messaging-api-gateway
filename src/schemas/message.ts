@@ -1,8 +1,13 @@
 import { type Static, Type } from "typebox";
 
+export const RecipientTypes = {
+  Email: "email",
+  Identity: "identity",
+} as const;
+
 // Recipient variants (aligns with RecipientInput in profile-service)
 const EmailRecipientSchema = Type.Object({
-  type: Type.Literal("email"),
+  type: Type.Literal(RecipientTypes.Email),
   firstName: Type.String({ minLength: 1 }),
   lastName: Type.String({ minLength: 1 }),
   email: Type.String({ format: "email" }),
@@ -11,8 +16,8 @@ const EmailRecipientSchema = Type.Object({
 });
 
 const IdentityRecipientSchema = Type.Object({
-  type: Type.Literal("identity"),
-  ppsn: Type.String({ minLength: 7 }),
+  type: Type.Literal(RecipientTypes.Identity),
+  ppsn: Type.String({ minLength: 5 }),
   dateOfBirth: Type.String({ format: "date" }),
 });
 
