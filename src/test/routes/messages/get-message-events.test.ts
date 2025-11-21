@@ -31,21 +31,27 @@ describe("GET /v1/messages/events integration", () => {
 
     const messagingSdk = {
       getMessageEvents: vi.fn().mockResolvedValue({
-        data: {
-          events: [
-            {
-              messageId: fakeUuid("message"),
-              subject: "Test subject one",
-              timestamp: new Date().toISOString(),
-              status: "sent",
-            },
-            {
-              messageId: fakeUuid("message"),
-              subject: "Test subject two",
-              timestamp: new Date(Date.now() - 1000).toISOString(),
-              status: "delivered",
-            },
-          ],
+        data: [
+          {
+            id: fakeUuid("event"),
+            messageId: fakeUuid("message"),
+            subject: "Test subject one",
+            receiverFullName: "John Doe",
+            eventType: "email_sent",
+            eventStatus: "sent",
+            scheduledAt: new Date().toISOString(),
+          },
+          {
+            id: fakeUuid("event"),
+            messageId: fakeUuid("message"),
+            subject: "Test subject two",
+            receiverFullName: "Jane Smith",
+            eventType: "email_delivered",
+            eventStatus: "delivered",
+            scheduledAt: new Date(Date.now() - 1000).toISOString(),
+          },
+        ],
+        metadata: {
           totalCount: 2,
         },
       }),
@@ -69,6 +75,7 @@ describe("GET /v1/messages/events integration", () => {
       method: "GET",
       url: "/messages/v1/messages/events?limit=10&offset=0",
     });
+
     expect(res.statusCode).toBe(200);
     const payload = res.json();
     expect(Array.isArray(payload.data)).toBe(true);
