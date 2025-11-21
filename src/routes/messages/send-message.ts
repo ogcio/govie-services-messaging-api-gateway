@@ -13,6 +13,10 @@ import { sendMessageRouteSchema } from "./schema.js";
  *
  * Send a message to recipients with optional attachments
  *
+ * Content-Type: multipart/form-data
+ * - Uses attachToBody option to attach parsed fields to request.body
+ * - Files are streamed via onFile handler to avoid buffering
+ *
  * Spec: US1, FR-001 through FR-039
  * Success: 201 Created
  * Errors: 400 validation_error, 401 auth_missing, 403 org_missing,
@@ -24,7 +28,15 @@ import { sendMessageRouteSchema } from "./schema.js";
 const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
   fastify.post(
     "/v1/messages",
-    { schema: sendMessageRouteSchema },
+    {
+      schema: sendMessageRouteSchema,
+      attachFieldsToBody: "keyValues" as const,
+      onFile: async (part: MultipartFile) => {
+        // Collect file metadata without buffering the stream
+        // The stream will be consumed later during upload
+        part.file; // Access file stream but don't consume it yet
+      },
+    },
     async (
       request: FastifyRequestTypebox<typeof sendMessageRouteSchema>,
       reply: FastifyReplyTypebox<typeof sendMessageRouteSchema>,
@@ -39,13 +51,14 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       const uploadSdk = fastify.getUploadSdk(userData.accessToken);
       const messagingSdk = fastify.getMessagingSdk(userData.accessToken);
 
-      // Collect multipart file parts as attachments (if multipart request)
+      // Collect file parts (streamed via onFile, attached to request)
       const attachments: MultipartFile[] = [];
       if (request.isMultipart()) {
-        for await (const part of request.files()) {
-          // Only treat file parts; field parts ignored (already in body)
-          // Fastify's MultipartFile type has toBuffer() etc.
-          attachments.push(part);
+        const parts = request.parts();
+        for await (const part of parts) {
+          if (part.type === "file") {
+            attachments.push(part as MultipartFile);
+          }
         }
       }
 

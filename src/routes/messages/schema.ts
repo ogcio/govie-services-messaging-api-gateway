@@ -12,8 +12,8 @@ import { PaginationParamsSchema } from "../../schemas/pagination.js";
 // POST /v1/messages
 export const sendMessageRouteSchema = {
   tags: ["messages"],
-  description:
-    "Send a message with optional attachments to one or more recipients",
+  consumes: ["multipart/form-data"],
+  description: "Send a message with optional attachments (multipart/form-data)",
   body: SendMessageRequestSchema,
   response: {
     201: getGenericResponseSchema(SendMessageResponseSchema),
