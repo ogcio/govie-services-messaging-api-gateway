@@ -128,16 +128,16 @@ Note: Uses same SDK method as US2 (getMessageEvents) but with messageId paramete
 
 Implementation Tasks:
 
-- [ ] T079 [US3] Use queryMessageEvents with messageId filter (already unified in messaging-service.ts)
-- [ ] T080 [P] [US3] Verify SDK returns chronological sort (no additional sorting needed) (src/services/messaging-service.ts)
-- [ ] T081 [US3] Extend schemas for message history response (src/routes/messages/schema.ts)
-- [ ] T082 [US3] Implement route handler logic (src/routes/messages/get-message-history.ts)
-- [ ] T083 [P] [US3] Add integration test: valid message history returned (src/test/routes/messages/get-message-history.test.ts)
-- [ ] T084 [P] [US3] Add integration test: non-existent message returns 404 (src/test/routes/messages/get-message-history.test.ts)
-- [ ] T085 [P] [US3] Add integration test: unauthorized returns 401 (src/test/routes/messages/get-message-history.test.ts)
-- [ ] T086 [US3] Add integration test: missing organizationId returns 401 (src/test/routes/messages/get-message-history.test.ts)
-- [ ] T087 [US3] Add contract test: history schema correctness (src/test/contracts/message-routes.test.ts)
-- [ ] T088 [P] [US3] Update quickstart with history examples (specs/001-messaging-gateway-endpoints/quickstart.md)
+- [X] T079 [US3] Use queryMessageEvents with messageId filter (already unified in messaging-service.ts)
+- [X] T080 [P] [US3] Verify SDK returns chronological sort (no additional sorting needed) (src/services/messaging-service.ts)
+- [X] T081 [US3] Extend schemas for message history response (src/routes/messages/schema.ts)
+- [X] T082 [US3] Implement route handler logic (src/routes/messages/get-message-history.ts)
+- [X] T083 [P] [US3] Add integration test: valid message history returned (src/test/routes/messages/get-message-history.test.ts)
+- [X] T084 [P] [US3] Add integration test: non-existent message returns 404 (src/test/routes/messages/get-message-history.test.ts)
+- [X] T085 [P] [US3] Add integration test: unauthorized returns 401 (src/test/routes/messages/get-message-history.test.ts)
+- [X] T086 [US3] Add integration test: missing organizationId returns 401 (src/test/routes/messages/get-message-history.test.ts)
+- [X] T087 [US3] Add contract test: history schema correctness (src/test/contracts/message-routes.test.ts)
+- [X] T088 [P] [US3] Update quickstart with history examples (specs/001-messaging-gateway-endpoints/quickstart.md)
 
  
 ## Phase 6: Polish & Cross-Cutting

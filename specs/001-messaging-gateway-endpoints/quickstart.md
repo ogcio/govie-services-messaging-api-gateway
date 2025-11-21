@@ -86,7 +86,7 @@ Open your browser to `http://localhost:3000/documentation` and verify:
 ### Step 3: Test Authentication (Should Fail Without Token)
 
 ```bash
-curl -X POST http://localhost:3000/v1/messages \
+curl -X POST http://localhost:3000/api/v1/messages \
   -H "Content-Type: application/json" \
   -d '{
     "subject": "Test",
@@ -122,7 +122,7 @@ curl -X POST http://localhost:3000/v1/messages \
 ```bash
 export TOKEN="<your-jwt-token>"
 
-curl -X POST http://localhost:3000/v1/messages \
+curl -X POST http://localhost:3000/api/v1/messages \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -171,7 +171,7 @@ echo "This is a test attachment" > test-attachment.txt
 Send message with attachment:
 
 ```bash
-curl -X POST http://localhost:3000/v1/messages \
+curl -X POST http://localhost:3000/api/v1/messages \
   -H "Authorization: Bearer $TOKEN" \
   -F "subject=Message with attachment" \
   -F "plainTextBody=This message includes a file attachment." \
@@ -211,7 +211,7 @@ The `scheduledAt` field controls deferred dispatch. Current semantics:
 Example future schedule:
 
 ```bash
-curl -X POST http://localhost:3000/v1/messages \
+curl -X POST http://localhost:3000/api/v1/messages \
   -H "Authorization: Bearer $TOKEN" \
   -F "subject=Future scheduled message" \
   -F "plainTextBody=This will be processed later." \
@@ -228,7 +228,7 @@ If an attachment upload fails (e.g. transient 502 persisting across retries), th
 Simulate failure (example assumes downstream returns 502 for a specific filename):
 
 ```bash
-curl -X POST http://localhost:3000/v1/messages \
+curl -X POST http://localhost:3000/api/v1/messages \
   -H "Authorization: Bearer $TOKEN" \
   -F "subject=Failure simulation" \
   -F "plainTextBody=One attachment will fail." \
@@ -277,7 +277,7 @@ After final failed attempt a 502 error response is returned and cleanup is initi
 ### Step 6: Query Latest Message Events
 
 ```bash
-curl -X GET "http://localhost:3000/v1/messages/events?limit=10&offset=0" \
+curl -X GET "http://localhost:3000/api/v1/messages/events?limit=10&offset=0" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -301,10 +301,10 @@ curl -X GET "http://localhost:3000/v1/messages/events?limit=10&offset=0" \
     "limit": 10,
     "offset": 0,
     "links": {
-      "first": "/v1/messages/events?limit=10&offset=0",
+      "first": "/api/v1/messages/events?limit=10&offset=0",
       "previous": null,
       "next": null,
-      "last": "/v1/messages/events?limit=10&offset=0"
+      "last": "/api/v1/messages/events?limit=10&offset=0"
     }
   }
 }
@@ -328,7 +328,7 @@ The pagination response demonstrates the **GenericResponse** envelope with HATEO
 - `metadata.links`: HATEOAS navigation (first, previous, next, last, self)
 - `metadata.limit` and `metadata.offset`: Echo sanitized request values
 
-#### Example: GET /v1/messages/events?limit=10&offset=20
+#### Example: GET /api/v1/messages/events?limit=10&offset=20
 
 Response (200 OK):
 
@@ -359,11 +359,11 @@ Response (200 OK):
     "limit": 10,
     "offset": 20,
     "links": {
-      "self": "/v1/messages/events?limit=10&offset=20",
-      "first": "/v1/messages/events?limit=10&offset=0",
-      "previous": "/v1/messages/events?limit=10&offset=10",
-      "next": "/v1/messages/events?limit=10&offset=30",
-      "last": "/v1/messages/events?limit=10&offset=40"
+      "self": "/api/v1/messages/events?limit=10&offset=20",
+      "first": "/api/v1/messages/events?limit=10&offset=0",
+      "previous": "/api/v1/messages/events?limit=10&offset=10",
+      "next": "/api/v1/messages/events?limit=10&offset=30",
+      "last": "/api/v1/messages/events?limit=10&offset=40"
     }
   }
 }
@@ -382,11 +382,11 @@ Response (200 OK):
        "limit": 20,
        "offset": 0,
        "links": {
-         "self": "/v1/messages/events?limit=20&offset=0",
-         "first": "/v1/messages/events?limit=20&offset=0",
+         "self": "/api/v1/messages/events?limit=20&offset=0",
+         "first": "/api/v1/messages/events?limit=20&offset=0",
          "previous": null,
          "next": null,
-         "last": "/v1/messages/events?limit=20&offset=0"
+         "last": "/api/v1/messages/events?limit=20&offset=0"
        }
      }
    }
@@ -402,25 +402,25 @@ Response (200 OK):
        "limit": 20,
        "offset": 0,
        "links": {
-         "self": "/v1/messages/events?limit=20&offset=0",
-         "first": "/v1/messages/events?limit=20&offset=0",
+         "self": "/api/v1/messages/events?limit=20&offset=0",
+         "first": "/api/v1/messages/events?limit=20&offset=0",
          "previous": null,
          "next": null,
-         "last": "/v1/messages/events?limit=20&offset=0"
+         "last": "/api/v1/messages/events?limit=20&offset=0"
        }
      }
    }
    ```
 
 1. **Filters Preserved in Links**:
-  For `GET /v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0`:
+  For `GET /api/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0`:
 
   ```json
    {
      "metadata": {
        "links": {
-         "self": "/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0",
-         "next": "/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=10",
+         "self": "/api/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0",
+         "next": "/api/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=10",
          ...
        }
      }
@@ -430,7 +430,7 @@ Response (200 OK):
 ### Step 8: Filter Message Events by Recipient
 
 ```bash
-curl -X GET "http://localhost:3000/v1/messages/events?recipientEmail=test.user@example.ie" \
+curl -X GET "http://localhost:3000/api/v1/messages/events?recipientEmail=test.user@example.ie" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -454,10 +454,10 @@ curl -X GET "http://localhost:3000/v1/messages/events?recipientEmail=test.user@e
     "limit": 20,
     "offset": 0,
     "links": {
-      "first": "/v1/messages/events?recipientEmail=test.user@example.ie&limit=20&offset=0",
+      "first": "/api/v1/messages/events?recipientEmail=test.user@example.ie&limit=20&offset=0",
       "previous": null,
       "next": null,
-      "last": "/v1/messages/events?recipientEmail=test.user@example.ie&limit=20&offset=0"
+      "last": "/api/v1/messages/events?recipientEmail=test.user@example.ie&limit=20&offset=0"
     }
   }
 }
@@ -470,10 +470,14 @@ curl -X GET "http://localhost:3000/v1/messages/events?recipientEmail=test.user@e
 
 ### Step 9: Get Message Event History
 
+Retrieve the complete chronological event history for a specific message.
+
+#### 9a: Basic History Query
+
 ```bash
 MESSAGE_ID="a1b2c3d4-e5f6-7890-abcd-ef1234567890"  # Use actual ID from Step 4
 
-curl -X GET "http://localhost:3000/v1/messages/$MESSAGE_ID/events" \
+curl -X GET "http://localhost:3000/api/v1/messages/$MESSAGE_ID/events" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -514,13 +518,123 @@ curl -X GET "http://localhost:3000/v1/messages/$MESSAGE_ID/events" \
 **Validation Checks**:
 
 - ✅ Response has HTTP 200 status
-- ✅ `events` array contains all events in chronological order
+- ✅ `events` array contains all events in chronological order (oldest first)
 - ✅ Each event has `eventType`, `timestamp`, and optional `details`
+- ✅ Message metadata includes `messageId`, `subject`, `recipientId`, and `recipientEmail`
+
+#### 9b: History With Pagination
+
+For messages with many events, use pagination parameters:
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/messages/$MESSAGE_ID/events?limit=5&offset=0" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected Response** (200 OK):
+
+```json
+{
+  "data": {
+    "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "subject": "Test message from quickstart",
+    "recipientId": "profile-12345",
+    "recipientEmail": "test.user@example.ie",
+    "events": [
+      {
+        "eventType": "queued",
+        "timestamp": "2025-11-20T14:00:10Z",
+        "details": {}
+      },
+      {
+        "eventType": "sent",
+        "timestamp": "2025-11-20T14:00:15Z",
+        "details": {
+          "deliveryAttempts": 1
+        }
+      },
+      {
+        "eventType": "delivered",
+        "timestamp": "2025-11-20T14:00:22Z",
+        "details": {
+          "smtpResponse": "250 OK"
+        }
+      },
+      {
+        "eventType": "read",
+        "timestamp": "2025-11-20T14:15:30Z",
+        "details": {
+          "userAgent": "Mozilla/5.0..."
+        }
+      },
+      {
+        "eventType": "archived",
+        "timestamp": "2025-11-20T15:00:00Z",
+        "details": {}
+      }
+    ]
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Events are returned in chronological order (oldest to newest)
+- ✅ Number of events does not exceed requested `limit`
+- ✅ Pagination parameters control which events are returned
+
+#### 9c: Error Case - Message Not Found
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/messages/00000000-0000-0000-0000-000000000000/events" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected Response** (404 Not Found):
+
+```json
+{
+  "error": {
+    "message": "No events found for message ID: 00000000-0000-0000-0000-000000000000",
+    "statusCode": 404,
+    "code": "NOT_FOUND"
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Response has HTTP 404 status
+- ✅ Error message indicates no events found for the specified message ID
+
+#### 9d: Error Case - Unauthorized Access
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/messages/$MESSAGE_ID/events" \
+  -H "Authorization: Bearer invalid-token"
+```
+
+**Expected Response** (401 Unauthorized):
+
+```json
+{
+  "error": {
+    "message": "Invalid token",
+    "statusCode": 401,
+    "code": "UNAUTHORIZED"
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Authentication is enforced for message history access
+- ✅ Invalid tokens are rejected with 401 status
 
 ### Step 10: Test Recipient Not Found (Error Case)
 
 ```bash
-curl -X POST http://localhost:3000/v1/messages \
+curl -X POST http://localhost:3000/api/v1/messages \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -557,7 +671,7 @@ curl -X POST http://localhost:3000/v1/messages \
 ### Step 11: Test Validation Error (Error Case)
 
 ```bash
-curl -X POST http://localhost:3000/v1/messages \
+curl -X POST http://localhost:3000/api/v1/messages \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
