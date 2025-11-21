@@ -78,4 +78,38 @@ describe("Message Routes - Contract Tests (Phase 2)", () => {
     expect(messagingRouteSchemas.getMessageHistory.params).toBeDefined();
     expect(messagingRouteSchemas.getMessageHistory.response[200]).toBeDefined();
   });
+
+  // T062: Contract test for send-message schema fields
+  it("send-message schema validates required fields and response structure", () => {
+    const bodySchema = messagingRouteSchemas.sendMessage.body;
+    const responseSchema = messagingRouteSchemas.sendMessage.response[201];
+
+    // Verify body schema has required properties
+    expect(bodySchema).toBeDefined();
+    expect(bodySchema.properties).toHaveProperty("subject");
+    expect(bodySchema.properties).toHaveProperty("plainTextBody");
+    expect(bodySchema.properties).toHaveProperty("securityLevel");
+    expect(bodySchema.properties).toHaveProperty("language");
+    expect(bodySchema.properties).toHaveProperty("scheduledAt");
+    expect(bodySchema.properties).toHaveProperty("recipient");
+
+    // Verify optional fields present
+    expect(bodySchema.properties).toHaveProperty("htmlBody");
+    expect(bodySchema.properties).toHaveProperty("attachmentsMeta");
+
+    // Verify recipient union schema
+    const recipientSchema = bodySchema.properties.recipient;
+    expect(recipientSchema.anyOf).toBeDefined();
+    expect(recipientSchema.anyOf).toHaveLength(2);
+
+    // Verify 201 response schema structure
+    expect(responseSchema).toBeDefined();
+    expect(responseSchema.properties).toHaveProperty("data");
+
+    const dataSchema = responseSchema.properties.data;
+    expect(dataSchema.properties).toHaveProperty("messageId");
+    expect(dataSchema.properties).toHaveProperty("recipientId");
+    expect(dataSchema.properties).toHaveProperty("attachmentIds");
+    expect(dataSchema.properties).toHaveProperty("status");
+  });
 });
