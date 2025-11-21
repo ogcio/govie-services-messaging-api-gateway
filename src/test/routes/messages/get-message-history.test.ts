@@ -108,14 +108,31 @@ describe("GET /v1/messages/:messageId/events integration", () => {
   });
 
   it("returns 403 if org missing or forbidden", async () => {
-    const messageId = randomUUID();
-    messagingSdk.getMessageEvents.mockRejectedValueOnce({ statusCode: 403 });
-    const res = await app.inject({
-      method: "GET",
-      url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
+    const noOrgApp = await buildTestServer();
+    noOrgApp.addHook("onRequest", (req, _reply, done) => {
+      req.userData = {
+        accessToken: "test-token",
+        organizationId: undefined,
+        userId: "user-123",
+        isM2MApplication: false,
+      };
+      done();
     });
-    expect(res.statusCode).toBe(403);
-    const payload = res.json();
-    expect(payload.code).toBe("ORG_MISSING");
+    noOrgApp.getMessagingSdk = vi.fn().mockReturnValue(messagingSdk);
+    try {
+      await noOrgApp.ready();
+
+      const messageId = randomUUID();
+      messagingSdk.getMessageEvents.mockRejectedValueOnce({ statusCode: 403 });
+      const res = await noOrgApp.inject({
+        method: "GET",
+        url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
+      });
+      expect(res.statusCode).toBe(403);
+      const payload = res.json();
+      expect(payload.code).toBe("ORG_MISSING");
+    } finally {
+      await noOrgApp.close();
+    }
   });
 });
