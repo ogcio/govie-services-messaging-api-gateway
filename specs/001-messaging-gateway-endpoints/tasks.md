@@ -86,13 +86,13 @@ Implementation Tasks:
 - [X] T054 [P] [US1] Add integration test: upload failure triggers atomic abort (src/test/routes/messages/send-message.test.ts)
 - [X] T055 [P] [US1] Add integration test: share failure triggers atomic abort (src/test/routes/messages/send-message.test.ts)
 - [X] T056 [US1] Add integration test: scheduled_at past sends immediately (src/test/routes/messages/send-message.test.ts)
-- [ ] T057 [US1] Add integration test: scheduled_at future accepted (src/test/routes/messages/send-message.test.ts)
-- [ ] T058 [US1] Add unit test: cleanup deletion success path (src/test/services/upload-service.test.ts)
-- [ ] T059 [P] [US1] Add unit test: cleanup partial failure logs (src/test/services/upload-service.test.ts)
-- [ ] T060 [US1] Add unit test: retry utility used for transient upload error (src/test/services/upload-service.test.ts)
-- [ ] T061 [US1] Add unit test: no retry on 401/403 upload errors (src/test/services/upload-service.test.ts)
+- [X] T057 [US1] Add integration test: scheduled_at future accepted (src/test/routes/messages/send-message.test.ts)
+- [X] T058 [US1] Add unit test: cleanup deletion success path (src/test/services/upload-service.test.ts)
+- [X] T059 [P] [US1] Add unit test: cleanup partial failure logs (src/test/services/upload-service.test.ts)
+- [X] T060 [US1] Add unit test: retry utility used for transient upload error (src/test/services/upload-service.test.ts)
+- [X] T061 [US1] Add unit test: no retry on 401/403 upload errors (src/test/services/upload-service.test.ts)
 - [X] T062 [US1] Add contract test: send-message swagger schema fields (src/test/contracts/message-routes.test.ts)
-- [ ] T063 [P] [US1] Update quickstart with send-message examples (specs/001-messaging-gateway-endpoints/quickstart.md)
+- [X] T063 [P] [US1] Update quickstart with send-message examples (specs/001-messaging-gateway-endpoints/quickstart.md)
 
  
 ## Phase 4: User Story 2 (Query Latest Message Events) [P2]

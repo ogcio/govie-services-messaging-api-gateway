@@ -56,9 +56,16 @@ export async function uploadFile(
       });
 
       const res = await uploadSdk.uploadFile(fileObj);
-      if (res.error || !res.data?.uploadId) {
-        const detail = res.error?.detail || "Failed to upload file";
+      if (res.error) {
+        const status = (res.error as { statusCode?: number }).statusCode;
+        const detail = res.error.detail || "Failed to upload file";
+        if (status) {
+          throw createError(status, detail);
+        }
         throw createError.BadGateway(detail);
+      }
+      if (!res.data?.uploadId) {
+        throw createError.BadGateway("Missing uploadId in response");
       }
 
       logger.info(
@@ -96,7 +103,11 @@ export async function shareFile(
     async () => {
       const res = await uploadSdk.shareFile(uploadId, recipientProfileId);
       if (res.error) {
+        const status = (res.error as { statusCode?: number }).statusCode;
         const detail = res.error.detail || "Failed to share file";
+        if (status) {
+          throw createError(status, detail);
+        }
         throw createError.BadGateway(detail);
       }
 

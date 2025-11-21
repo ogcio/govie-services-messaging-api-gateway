@@ -200,6 +200,80 @@ curl -X POST http://localhost:3000/v1/messages \
 - ✅ `attachmentIds` array has one element
 - ✅ Attachment ID is a valid UUID
 
+### Step 5a: Scheduling Semantics (Past vs Future)
+
+The `scheduledAt` field controls deferred dispatch. Current semantics:
+
+- A timestamp in the PAST is still forwarded; downstream may choose to dispatch immediately.
+- A timestamp in the FUTURE (e.g. +1h) is accepted and forwarded unchanged (`scheduleAt`).
+- There is no server-side delay queue in the gateway; scheduling is delegated to downstream messaging service.
+
+Example future schedule:
+
+```bash
+curl -X POST http://localhost:3000/v1/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "subject=Future scheduled message" \
+  -F "plainTextBody=This will be processed later." \
+  -F "securityLevel=public" \
+  -F "language=en" \
+  -F "scheduledAt=$(date -u -v+1H +"%Y-%m-%dT%H:%M:%SZ")" \
+  -F 'recipient={"type":"email","firstName":"Test","lastName":"User","email":"test.user@example.ie"}'
+```
+
+### Step 5b: Atomic Failure & Cleanup Example
+
+If an attachment upload fails (e.g. transient 502 persisting across retries), the gateway aborts the send and attempts best-effort deletion of already uploaded files.
+
+Simulate failure (example assumes downstream returns 502 for a specific filename):
+
+```bash
+curl -X POST http://localhost:3000/v1/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "subject=Failure simulation" \
+  -F "plainTextBody=One attachment will fail." \
+  -F "securityLevel=confidential" \
+  -F "language=en" \
+  -F "scheduledAt=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+  -F 'recipient={"type":"email","firstName":"Test","lastName":"User","email":"test.user@example.ie"}' \
+  -F "attachments=@failing-attachment.bin"
+```
+
+**Expected Response** (502 Bad Gateway):
+
+```json
+{
+  "error": {
+    "message": "Failed to upload file",
+    "statusCode": 502,
+    "code": "BAD_GATEWAY"
+  }
+}
+```
+
+Log output will include:
+
+```text
+{"phase":"upload_phase_start",...}
+{"phase":"cleanup_phase_start",...}
+{"phase":"cleanup_phase_end","deleted":2,"attempted":2,"successRate":"100.0%",...}
+```
+
+No message is dispatched; no partial artifacts remain (FR-030, FR-031).
+
+### Step 5c: Retry Behavior Illustration
+
+Transient errors (502/503/504, ETIMEDOUT, ECONNRESET) during upload/share are retried up to 3 attempts with exponential backoff (nominal 100ms, 200ms, 400ms ±50% jitter). Client errors (4xx) are not retried.
+
+Sample log lines for retries:
+
+```text
+{"msg":"retry_attempt","attempt":1,"statusCode":502,"delayMs":137}
+{"msg":"retry_attempt","attempt":2,"statusCode":503,"delayMs":295}
+```
+
+After final failed attempt a 502 error response is returned and cleanup is initiated.
+
 ### Step 6: Query Latest Message Events
 
 ```bash
@@ -254,7 +328,7 @@ The pagination response demonstrates the **GenericResponse** envelope with HATEO
 - `metadata.links`: HATEOAS navigation (first, previous, next, last, self)
 - `metadata.limit` and `metadata.offset`: Echo sanitized request values
 
-**Example GET /v1/messages/events?limit=10&offset=20**
+#### Example: GET /v1/messages/events?limit=10&offset=20
 
 Response (200 OK):
 
@@ -297,8 +371,10 @@ Response (200 OK):
 
 **Edge Cases Covered** (per spec addendum):
 
+
 1. **Zero Results** (`totalCount=0`):
-   ```json
+
+  ```json
    {
      "data": [],
      "metadata": {
@@ -316,8 +392,9 @@ Response (200 OK):
    }
    ```
 
-2. **Single Page** (totalCount ≤ limit):
-   ```json
+1. **Single Page** (totalCount ≤ limit):
+
+  ```json
    {
      "data": [ /* 5 events */ ],
      "metadata": {
@@ -335,9 +412,10 @@ Response (200 OK):
    }
    ```
 
-3. **Filters Preserved in Links**:
-   For `GET /v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0`:
-   ```json
+1. **Filters Preserved in Links**:
+  For `GET /v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0`:
+
+  ```json
    {
      "metadata": {
        "links": {
@@ -632,5 +710,8 @@ Once quickstart validation is complete:
 - Organization-level data isolation is handled transparently by the Building Blocks SDK
 - File uploads are streamed to minimize memory usage
 - Pagination uses limit/offset with HATEOAS links for easy navigation
-- **Retry behavior** (FR-032, FR-039): Transient errors (502/503/504, ETIMEDOUT, ECONNRESET) are retried up to 3 times with exponential backoff [100ms, 200ms, 400ms] and ±50% jitter; all 4xx client errors fail immediately
-- **Cleanup behavior** (FR-031, SC-008): If any attachment upload or sharing fails during message dispatch, the gateway performs best-effort deletion of all previously uploaded attachments before returning an error; cleanup success rate target is ≥95% (SC-008); cleanup failures are logged with breach alerts (FR-037, SC-009)
+- **Multipart-only**: The send-message endpoint currently accepts multipart/form-data only; JSON fallback is deferred.
+- **Scheduling**: `scheduledAt` is forwarded unchanged; gateway does not internally queue messages.
+- **Retry behavior** (FR-032, FR-039): Transient errors (502/503/504, ETIMEDOUT, ECONNRESET) are retried (max 3 attempts). 4xx errors fail immediately with original status.
+- **Cleanup behavior** (FR-031, SC-008): On failure after any successful upload/share, best-effort deletion runs; success rate logged (`deleted/attempted`). Target ≥95%. Breach alerting to be added in polish phase.
+- **Atomicity**: No partial message dispatch occurs if any pre-dispatch phase fails (recipient lookup, upload, share).
