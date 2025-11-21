@@ -1,8 +1,19 @@
 # Quickstart: Messaging Gateway Endpoints
 
 **Created**: 2025-11-20  
+**Last Updated**: 2025-11-21  
 **Purpose**: Validate implementation by following step-by-step instructions  
 **Audience**: Developers testing the implementation
+
+## Quick Reference
+
+| Endpoint | Method | Purpose | Authentication |
+|----------|--------|---------|----------------|
+| `/api/v1/messages` | POST | Send message with attachments | Required (JWT) |
+| `/api/v1/messages/events` | GET | Query latest message events | Required (JWT) |
+| `/api/v1/messages/:messageId/events` | GET | Get message event history | Required (JWT) |
+| `/health` | GET | Health check | None |
+| `/docs` | GET | OpenAPI/Swagger UI | None |
 
 ## Prerequisites
 
@@ -811,21 +822,116 @@ After completing all validation steps, you should have:
 
 Once quickstart validation is complete:
 
-1. Review implementation against constitution principles
-2. Run performance tests with concurrent requests
-3. Review security audit checklist
-4. Prepare for production deployment
-5. Update team documentation with any learnings
+1. **Performance Testing**: Run load tests with concurrent requests to verify throughput
+2. **Security Review**: Audit authentication, authorization, and data isolation
+3. **Monitoring Setup**: Configure alerts for error rates, latency, and cleanup success rates
+4. **Production Deployment**: Follow deployment checklist below
+5. **Team Documentation**: Update runbooks with operational procedures
+
+## Production Readiness Checklist
+
+Before deploying to production:
+
+### Infrastructure
+- [ ] Environment variables configured for production URLs
+- [ ] JWT public key configured correctly
+- [ ] Rate limiting configured (if required)
+- [ ] Load balancer health checks pointing to `/health`
+- [ ] Horizontal scaling configured (multiple instances)
+
+### Observability
+- [ ] OpenTelemetry collector endpoint configured (`OTEL_COLLECTOR_URL`)
+- [ ] Log aggregation configured (structured JSON logs)
+- [ ] Metrics dashboards created (message send duration, upload phase, cleanup rates)
+- [ ] Alerts configured:
+  - Error rate > 5%
+  - P95 latency > 2 seconds
+  - Cleanup success rate < 95%
+  - Downstream service failures
+
+### Security
+- [ ] HTTPS/TLS enabled
+- [ ] CORS configured appropriately
+- [ ] JWT signature verification enabled
+- [ ] Organization ID validation enforced
+- [ ] File upload size limits configured
+- [ ] Rate limiting enabled (if applicable)
+
+### Performance
+- [ ] Database connection pooling optimized
+- [ ] File streaming configured (not buffering in memory)
+- [ ] Retry timeouts tuned for production
+- [ ] Concurrent request limits set
+
+### Testing
+- [ ] All integration tests passing
+- [ ] Contract tests validating OpenAPI spec
+- [ ] Load tests completed successfully
+- [ ] Failover scenarios tested
+- [ ] Recovery procedures documented
+
+## Observability & Monitoring
+
+### Traces
+The gateway automatically creates OpenTelemetry traces for:
+- `profile_lookup_duration` - Recipient profile lookup time
+- `upload_phase_duration` - File upload batch processing time
+- `message_send_duration` - Complete message dispatch time
+- `cleanup_duration` - Cleanup operation time (on failures)
+
+View traces in your OpenTelemetry-compatible backend (Grafana Tempo, Jaeger, etc.).
+
+### Metrics
+Key metrics to monitor:
+- **Request rate**: Total requests per second
+- **Error rate**: Failed requests as percentage of total
+- **Latency percentiles**: P50, P95, P99 response times
+- **Cleanup success rate**: Percentage of successful file deletions (target: ≥95%)
+- **Downstream failures**: Failures from profile-api, messaging-api, upload-api
+
+### Logs
+Structured logs include:
+- `correlationId` - Request tracking across services
+- `organizationId` - For filtering by organization
+- `phase` - Orchestration phase (profile_lookup_start, upload_phase_end, etc.)
+- `durationMs` - Phase timing information
+
+Query logs by correlation ID to trace a specific request through the system.
 
 ## Notes
 
+### API Design Principles
 - All API responses use consistent JSON structure with `data` and optional `metadata`
 - Authentication is enforced on all endpoints via the existing gateway-auth plugin
 - Organization-level data isolation is handled transparently by the Building Blocks SDK
-- File uploads are streamed to minimize memory usage
 - Pagination uses limit/offset with HATEOAS links for easy navigation
-- **Multipart-only**: The send-message endpoint currently accepts multipart/form-data only; JSON fallback is deferred.
-- **Scheduling**: `scheduledAt` is forwarded unchanged; gateway does not internally queue messages.
-- **Retry behavior** (FR-032, FR-039): Transient errors (502/503/504, ETIMEDOUT, ECONNRESET) are retried (max 3 attempts). 4xx errors fail immediately with original status.
-- **Cleanup behavior** (FR-031, SC-008): On failure after any successful upload/share, best-effort deletion runs; success rate logged (`deleted/attempted`). Target ≥95%. Breach alerting to be added in polish phase.
-- **Atomicity**: No partial message dispatch occurs if any pre-dispatch phase fails (recipient lookup, upload, share).
+
+### File Handling
+- File uploads are streamed to minimize memory usage
+- Maximum file size and count limits are enforced
+- Attachments are automatically shared with recipients via upload-api
+- **Multipart-only**: The send-message endpoint currently accepts multipart/form-data only; JSON fallback is deferred
+
+### Message Scheduling
+- `scheduledAt` is forwarded unchanged to downstream messaging service
+- Gateway does not internally queue messages (scheduling delegated downstream)
+- Past timestamps are accepted and processed
+- Future timestamps enable deferred delivery
+
+### Error Handling & Resilience
+- **Retry behavior** (FR-032, FR-039): Transient errors (502/503/504, ETIMEDOUT, ECONNRESET) are retried (max 3 attempts with exponential backoff)
+- **No retry on client errors**: 4xx errors fail immediately with original status
+- **Cleanup behavior** (FR-031, SC-008): On failure after any successful upload/share, best-effort deletion runs; success rate logged (`deleted/attempted`). Target ≥95%
+- **Atomicity** (FR-030): No partial message dispatch occurs if any pre-dispatch phase fails (recipient lookup, upload, share)
+
+### Performance Characteristics
+- **Expected latency**: P95 < 2 seconds for messages without attachments
+- **With attachments**: Additional ~500ms per file for upload/share operations
+- **Concurrency**: Supports parallel upload and share operations
+- **Throughput**: Designed for ~100 requests/second per instance
+
+### Known Limitations
+- Multipart/form-data only (no JSON payload support yet)
+- No built-in rate limiting (implement at load balancer level)
+- Cleanup success alerting not yet implemented (planned for future release)
+- Message status tracking requires querying downstream messaging-api directly

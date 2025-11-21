@@ -154,7 +154,7 @@ Implementation Tasks:
 - [X] T093 [P] Add log field standardizer (correlationId, organizationId, attempt) (src/utils/logging-standardizer.ts)
 - [X] T094 Add README section for messaging endpoints (README.md)
 - [ ] T095 [P] Add performance test script stub (scripts/perf/send-message-perf.test.ts)
-- [ ] T096 Add final quickstart polish (specs/001-messaging-gateway-endpoints/quickstart.md)
+- [X] T096 Add final quickstart polish (specs/001-messaging-gateway-endpoints/quickstart.md)
 - [ ] T097 [P] Add coverage threshold config check (package.json)
 - [ ] T098 Add rate limiting TODO stub for future enhancement (docs/future/rate-limiting.md)
 
