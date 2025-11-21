@@ -75,7 +75,7 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
             uploadSdk,
             messagingSdk,
             userData,
-            logger: fastify.log,
+            logger: request.log,
           },
           input,
         );

@@ -3,6 +3,7 @@ import {
   type MessageEventsQuery,
   queryMessageEvents,
 } from "../../../../services/messaging-service.js";
+import { requireAuthToken } from "../../../../utils/auth-helpers.js";
 import {
   formatAPIResponse,
   sanitizePagination,
@@ -31,17 +32,9 @@ const getMessageEventsRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       request: FastifyRequestTypebox<typeof getMessageEventsRouteSchema>,
       reply: FastifyReplyTypebox<typeof getMessageEventsRouteSchema>,
     ) => {
-      const token = request.userData?.accessToken;
-      if (!token) {
-        reply.status(401).send({
-          code: "UNAUTHORIZED",
-          detail: "No authorization header found",
-          requestId: request.id,
-          name: "UnauthorizedError",
-          statusCode: 401,
-        });
-        return;
-      }
+      const token = requireAuthToken(request, reply);
+      if (!token) return;
+
       const messagingSdk = fastify.getMessagingSdk(token);
 
       const filters: MessageEventsQuery = {

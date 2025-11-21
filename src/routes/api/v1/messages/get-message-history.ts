@@ -1,5 +1,11 @@
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import { queryMessageEvents } from "../../../../services/messaging-service.js";
+import { requireAuthToken } from "../../../../utils/auth-helpers.js";
+import {
+  isForbiddenError,
+  sendForbidden,
+  sendNotFound,
+} from "../../../../utils/error-responses.js";
 import { sanitizePagination } from "../../../../utils/pagination.js";
 import type {
   FastifyReplyTypebox,
@@ -30,17 +36,10 @@ const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       const { messageId } = request.params;
       const query = request.query;
       const sanitized = sanitizePagination(query);
-      const token = request.userData?.accessToken;
-      if (!token) {
-        reply.status(401).send({
-          code: "UNAUTHORIZED",
-          detail: "No authorization header found",
-          requestId: request.id,
-          name: "UnauthorizedError",
-          statusCode: 401,
-        });
-        return;
-      }
+
+      const token = requireAuthToken(request, reply);
+      if (!token) return;
+
       const messagingSdk = fastify.getMessagingSdk(token);
 
       try {
@@ -51,13 +50,11 @@ const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
         });
         // If no events found, return 404
         if (!result.data || result.data.length === 0) {
-          reply.status(404).send({
-            code: "NOT_FOUND",
-            detail: `No events found for messageId ${messageId}`,
-            requestId: request.id,
-            name: "NotFoundError",
-            statusCode: 404,
-          });
+          sendNotFound(
+            reply,
+            request.id,
+            `No events found for messageId ${messageId}`,
+          );
           return;
         }
 
@@ -78,23 +75,9 @@ const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
         reply.status(200).send(response as never);
       } catch (err: unknown) {
         // Map org/authorization errors to 403
-        if (
-          typeof err === "object" &&
-          err !== null &&
-          ("statusCode" in err || "code" in err)
-        ) {
-          const statusCode = (err as { statusCode?: number }).statusCode;
-          const code = (err as { code?: string }).code;
-          if (statusCode === 403 || code === "ORG_MISSING") {
-            reply.status(403).send({
-              code: "ORG_MISSING",
-              detail: "Organization missing or forbidden",
-              requestId: request.id,
-              name: "ForbiddenError",
-              statusCode: 403,
-            });
-            return;
-          }
+        if (isForbiddenError(err)) {
+          sendForbidden(reply, request.id);
+          return;
         }
         // Pass through other errors
         throw err;

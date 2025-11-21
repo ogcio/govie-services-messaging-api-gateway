@@ -165,6 +165,30 @@ Additional Remediation & Verification Tasks:
 - [ ] T101 Add unit test: cleanup success breach alert scenario (<95% triggers alert/log) (src/test/services/upload-service.test.ts)
 - [ ] T102 Add contract test: atomic failure 502 error schema (src/test/contracts/message-routes.test.ts)
 
+## Phase 7: Code Refactoring
+
+Purpose: Eliminate code duplication by extracting shared utilities for authentication, error handling, and response formatting.
+Independent Test Criteria: All existing tests pass, new utility tests added, routes use shared helpers consistently.
+
+Code Duplication Patterns Identified:
+1. Token validation check duplicated in get-message-events.ts and get-message-history.ts
+2. 401 Unauthorized error response structure duplicated
+3. 403 Forbidden error response structure duplicated  
+4. 404 Not Found error response structure duplicated
+5. Error mapping logic duplicated across routes
+
+Implementation Tasks:
+
+- [X] T103 Create shared auth helper `requireAuthToken(request, reply)` that validates token and sends 401 if missing (src/utils/auth-helpers.ts)
+- [X] T104 Create shared error response helpers `sendUnauthorized(reply, requestId)`, `sendForbidden(reply, requestId, detail?)`, `sendNotFound(reply, requestId, detail)` (src/utils/error-responses.ts)
+- [X] T105 Add unit tests for auth-helpers utility (src/test/utils/auth-helpers.test.ts)
+- [X] T106 Add unit tests for error-responses utility (src/test/utils/error-responses.test.ts)
+- [X] T107 Refactor get-message-events.ts to use requireAuthToken and error helpers (src/routes/api/v1/messages/get-message-events.ts)
+- [X] T108 Refactor get-message-history.ts to use requireAuthToken and error helpers (src/routes/api/v1/messages/get-message-history.ts)
+- [X] T109 Refactor send-message.ts to use auth helpers if applicable (src/routes/api/v1/messages/send-message.ts)
+- [X] T110 Verify all existing route tests still pass after refactoring (src/test/routes/messages/)
+- [ ] T111 Update quickstart with refactoring notes on shared utilities (specs/001-messaging-gateway-endpoints/quickstart.md)
+
  
 ## Dependencies & Story Order
 
@@ -202,13 +226,15 @@ Rollback Plan: Keep each phase behind feature branch; merge to `dev` only after 
  
 ## Task Counts
 
- - Total Tasks: 102
+- Total Tasks: 111
 - Setup Phase: 20
 - Foundational Phase: 15
 - User Story 1: 28
 - User Story 2: 15
 - User Story 3: 10
- - Polish Phase: 14
+- Polish Phase: 10
+- Remediation Phase: 4
+- Refactoring Phase: 9
 
 ## Independent Test Criteria per Story
 
