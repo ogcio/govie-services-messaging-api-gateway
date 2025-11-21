@@ -79,7 +79,7 @@ Implementation Tasks:
 - [X] T047 [US1] Add retry wrapping for transient upload/share errors (src/services/upload-service.ts)
 - [X] T048 [P] [US1] Add retry wrapping for transient messaging send errors (src/services/messaging-service.ts)
 - [X] T049 [US1] Add structured logging for each orchestration phase start/end (src/services/message-orchestration.ts)
-- [ ] T050 [US1] Add metrics timers (profile_lookup_duration, upload_phase_duration, cleanup_duration) (src/instrumentation.ts)
+- [X] T050 [US1] Add metrics timers (profile_lookup_duration, upload_phase_duration, cleanup_duration) (src/instrumentation.ts)
 - [X] T051 [P] [US1] Extend schemas for send-message body & response (src/routes/messages/schema.ts)
 - [X] T052 [US1] Implement route handler logic (src/routes/messages/send-message.ts)
 - [X] T053 [US1] Add integration test: successful send with attachments (src/test/routes/messages/send-message.test.ts)
@@ -147,9 +147,9 @@ Independent Test Criteria: Metrics emitted, logs structured, cleanup success mon
 
 Implementation Tasks:
 
-- [ ] T089 Implement metric emission for `message_send_duration` (src/instrumentation.ts)
-- [ ] T090 [P] Add metric emission for `upload_phase_duration` (src/instrumentation.ts)
-- [ ] T091 [P] Add metric emission for `cleanup_duration` (src/instrumentation.ts)
+- [X] T089 Implement metric emission for `message_send_duration` (src/instrumentation.ts)
+- [X] T090 [P] Add metric emission for `upload_phase_duration` (src/instrumentation.ts)
+- [X] T091 [P] Add metric emission for `cleanup_duration` (src/instrumentation.ts)
 - [ ] T092 Implement periodic cleanup success aggregation (rolling 30-day, in-memory or stub) (src/services/upload-service.ts)
 - [ ] T093 [P] Add log field standardizer (correlationId, organizationId, attempt) (src/utils/logging-standardizer.ts)
 - [ ] T094 Add README section for messaging endpoints (README.md)

@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import {
   type MessageEventsQuery,
@@ -37,7 +36,7 @@ const getMessageEventsRoute: FastifyPluginAsyncTypebox = async (fastify) => {
         reply.status(401).send({
           code: "UNAUTHORIZED",
           detail: "No authorization header found",
-          requestId: crypto.randomUUID(),
+          requestId: request.id,
           name: "UnauthorizedError",
           statusCode: 401,
         });
