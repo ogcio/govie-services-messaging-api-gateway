@@ -14,7 +14,44 @@ function fakeUuid(label: string) {
 }
 
 describe("GET /v1/messages/events integration", () => {
+  it("returns correct pagination links for multi-page results", async () => {
+    // Simulate 25 events, page size 10, offset 10 (page 2)
+    const events = Array.from({ length: 10 }, (_, i) => ({
+      id: fakeUuid(`event${i}`),
+      messageId: fakeUuid(`message${i}`),
+      subject: `Paginated event ${i + 11}`,
+      receiverFullName: `User ${i + 11}`,
+      eventType: "email_sent",
+      eventStatus: "sent",
+      scheduledAt: new Date().toISOString(),
+    }));
+    (
+      app.getMessagingSdk("test-token") as unknown as typeof messagingSdk
+    ).getMessageEvents.mockResolvedValueOnce({
+      data: events,
+      metadata: { totalCount: 25 },
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: "/messages/v1/messages/events?limit=10&offset=10",
+    });
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload.data.length).toBe(10);
+    // Check pagination links
+    const links = payload.metadata.links;
+    expect(links.first.href).toContain("limit=10");
+    expect(links.first.href).toContain("offset=0");
+    expect(links.self.href).toContain("limit=10");
+    expect(links.self.href).toContain("offset=10");
+    expect(links.next.href).toContain("offset=20");
+    expect(links.prev.href).toContain("offset=0");
+    expect(links.last.href).toContain("offset=20");
+    expect(payload.metadata.totalCount).toBe(25);
+    // No rel property assertions: links only have href
+  });
   let app: FastifyInstance;
+  let messagingSdk: { getMessageEvents: ReturnType<typeof vi.fn> };
 
   beforeAll(async () => {
     app = await buildTestServer();
@@ -29,7 +66,7 @@ describe("GET /v1/messages/events integration", () => {
       done();
     });
 
-    const messagingSdk = {
+    messagingSdk = {
       getMessageEvents: vi.fn().mockResolvedValue({
         data: [
           {
@@ -84,5 +121,116 @@ describe("GET /v1/messages/events integration", () => {
     expect(payload.metadata.links.first.href).toContain("/v1/messages/events");
     expect(payload.metadata.links.self.href).toContain("limit=10");
     expect(payload.metadata.links.self.href).toContain("offset=0");
+  });
+
+  it("filters events by recipientId", async () => {
+    // Patch SDK to return only events matching recipientId
+    const recipientId = "recipient-123";
+    const matchingEvent = {
+      id: fakeUuid("event"),
+      messageId: fakeUuid("message"),
+      subject: "Subject for recipientId",
+      receiverFullName: "Alice Example",
+      eventType: "email_sent",
+      eventStatus: "sent",
+      scheduledAt: new Date().toISOString(),
+    };
+    (
+      app.getMessagingSdk("test-token") as unknown as typeof messagingSdk
+    ).getMessageEvents.mockResolvedValueOnce({
+      data: [matchingEvent],
+      metadata: { totalCount: 1 },
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: `/messages/v1/messages/events?limit=10&offset=0&recipientId=${recipientId}`,
+    });
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload.data.length).toBe(1);
+    expect(payload.data[0].receiverFullName).toBe("Alice Example");
+  });
+
+  it("filters events by subjectContains", async () => {
+    const subject = "Special Subject";
+    const matchingEvent = {
+      id: fakeUuid("event"),
+      messageId: fakeUuid("message"),
+      subject,
+      receiverFullName: "Bob Example",
+      eventType: "email_sent",
+      eventStatus: "sent",
+      scheduledAt: new Date().toISOString(),
+    };
+    (
+      app.getMessagingSdk("test-token") as unknown as typeof messagingSdk
+    ).getMessageEvents.mockResolvedValueOnce({
+      data: [matchingEvent],
+      metadata: { totalCount: 1 },
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: `/messages/v1/messages/events?limit=10&offset=0&subjectContains=Special`,
+    });
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload.data.length).toBe(1);
+    expect(payload.data[0].subject).toContain("Special");
+  });
+
+  it("filters events by dateFrom and dateTo", async () => {
+    const now = new Date();
+    const earlier = new Date(now.getTime() - 1000 * 60 * 60).toISOString();
+    const later = new Date(now.getTime() + 1000 * 60 * 60).toISOString();
+    const matchingEvent = {
+      id: fakeUuid("event"),
+      messageId: fakeUuid("message"),
+      subject: "Date range event",
+      receiverFullName: "Carol Example",
+      eventType: "email_sent",
+      eventStatus: "sent",
+      scheduledAt: now.toISOString(),
+    };
+    (
+      app.getMessagingSdk("test-token") as unknown as typeof messagingSdk
+    ).getMessageEvents.mockResolvedValueOnce({
+      data: [matchingEvent],
+      metadata: { totalCount: 1 },
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: `/messages/v1/messages/events?limit=10&offset=0&dateFrom=${earlier}&dateTo=${later}`,
+    });
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload.data.length).toBe(1);
+    expect(payload.data[0].subject).toBe("Date range event");
+  });
+
+  it("filters events by recipientEmail", async () => {
+    const recipientEmail = "test@example.com";
+    const matchingEvent = {
+      id: fakeUuid("event"),
+      messageId: fakeUuid("message"),
+      subject: "Email filter event",
+      receiverFullName: "Dana Example",
+      eventType: "email_sent",
+      eventStatus: "sent",
+      scheduledAt: new Date().toISOString(),
+    };
+    (
+      app.getMessagingSdk("test-token") as unknown as typeof messagingSdk
+    ).getMessageEvents.mockResolvedValueOnce({
+      data: [matchingEvent],
+      metadata: { totalCount: 1 },
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: `/messages/v1/messages/events?limit=10&offset=0&recipientEmail=${recipientEmail}`,
+    });
+    expect(res.statusCode).toBe(200);
+    const payload = res.json();
+    expect(payload.data.length).toBe(1);
+    expect(payload.data[0].receiverFullName).toBe("Dana Example");
   });
 });
