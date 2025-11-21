@@ -62,15 +62,39 @@ export async function lookupRecipient(
   }
 
   if (recipient.type === "identity") {
-    // Future enhancement: implement PPSN + DOB lookup path
-    throw createError.NotImplemented(
-      "Identity-based recipient lookup not implemented yet",
-    );
+    // PPSN + DOB lookup via listProfilesPost
+    const searchResult = await profileSdk.listProfilesPost({
+      query: { limit: "1" },
+      body: { ppsns: [recipient.ppsn] },
+    });
+
+    if (searchResult.error) {
+      const { statusCode, detail } = searchResult.error;
+      if (statusCode === 404) {
+        throw createError.NotFound("Recipient not found in profile system");
+      }
+      throw createError(statusCode || 502, detail || "Profile lookup failed");
+    }
+
+    if (!searchResult.data || searchResult.data.length === 0) {
+      throw createError.NotFound("Recipient not found by PPSN");
+    }
+
+    const profile = searchResult.data[0];
+    return {
+      profileId: profile.id,
+      email: profile.email,
+      firstName: profile.details?.firstName,
+      lastName: profile.details?.lastName,
+    };
   }
 
   // Email-based lookup (primary path for T036/T037)
-  // Current SDK typing does not include an email query parameter; assume upstream fixed invocation separately.
-  const findResult = await profileSdk.findProfile({});
+  const findResultParams = {
+    email: recipient.email,
+    consentSubjects: [],
+  };
+  const findResult = await profileSdk.findProfile(findResultParams);
 
   if (findResult.error) {
     const { statusCode, detail } = findResult.error;
