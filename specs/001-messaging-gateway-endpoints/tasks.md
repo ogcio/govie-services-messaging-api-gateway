@@ -102,12 +102,12 @@ Independent Test Criteria: Integration tests query events with no filters, each 
 
 Implementation Tasks:
 
-- [ ] T064 [US2] Implement messaging-service `queryMessageEvents(filters)` using SDK getMessageEvents (src/services/messaging-service.ts)
+- [X] T064 [US2] Implement messaging-service `queryMessageEvents(filters)` using SDK getMessageEvents (src/services/messaging-service.ts)
 - [ ] T065 [P] [US2] Map query filters to SDK params (subject substring, date range, recipient identifiers) (src/services/messaging-service.ts)
-- [ ] T066 [US2] Integrate pagination link builder in route handler (src/routes/messages/get-message-events.ts)
-- [ ] T067 [US2] Extend schemas for query parameters & response (src/routes/messages/schema.ts)
-- [ ] T068 [US2] Implement route handler logic (src/routes/messages/get-message-events.ts)
-- [ ] T069 [P] [US2] Add integration test: no filters returns paginated list (src/test/routes/messages/get-message-events.test.ts)
+- [X] T066 [US2] Integrate pagination link builder in route handler (src/routes/messages/get-message-events.ts)
+- [X] T067 [US2] Extend schemas for query parameters & response (src/routes/messages/schema.ts)
+- [X] T068 [US2] Implement route handler logic (src/routes/messages/get-message-events.ts)
+- [X] T069 [P] [US2] Add integration test: no filters returns paginated list (src/test/routes/messages/get-message-events.test.ts)
 - [ ] T070 [P] [US2] Add integration test: filter by recipientId (src/test/routes/messages/get-message-events.test.ts)
 - [ ] T071 [P] [US2] Add integration test: filter by subject substring (src/test/routes/messages/get-message-events.test.ts)
 - [ ] T072 [P] [US2] Add integration test: filter by date range (src/test/routes/messages/get-message-events.test.ts)

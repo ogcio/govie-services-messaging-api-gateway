@@ -85,7 +85,7 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       } catch (err) {
         // http-errors already thrown by underlying services; map fallback
         if ((err as { statusCode?: number }).statusCode) throw err;
-        fastify.log.error({ err }, "send-message handler unexpected error");
+        request.log.error({ err }, "send-message handler unexpected error");
         throw createError.InternalServerError("Failed to send message");
       }
     },

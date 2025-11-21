@@ -32,16 +32,42 @@ export const sendMessageRouteSchema = {
 
 // GET /v1/messages/events
 const MessageEventSchema = Type.Object({
-  messageId: Type.String({ format: "uuid" }),
-  subject: Type.String(),
-  timestamp: Type.String({ format: "date-time" }),
-  status: Type.String(),
+  id: Type.String({
+    format: "uuid",
+    description: "Unique id of the event",
+  }),
+  messageId: Type.String({
+    format: "uuid",
+    description: "Unique id of the related message",
+  }),
+  subject: Type.String({ description: "Subject of the related message" }),
+  receiverFullName: Type.String({
+    description: "Full name of the recipient",
+  }),
+  eventType: Type.String({ description: "Event type description" }),
+  eventStatus: Type.String({ description: "Status for event type" }),
+  scheduledAt: Type.String({
+    description:
+      "Date and time which describes when the message has to be sent",
+  }),
 });
+
+const MessageEventsQueryParamsSchema = Type.Intersect([
+  PaginationParamsSchema,
+  Type.Object({
+    recipientEmail: Type.Optional(Type.String({ format: "email" })),
+    recipientId: Type.Optional(Type.String({ format: "uuid" })),
+    subjectContains: Type.Optional(Type.String()),
+    dateFrom: Type.Optional(Type.String({ format: "date-time" })),
+    dateTo: Type.Optional(Type.String({ format: "date-time" })),
+  }),
+]);
 
 export const getMessageEventsRouteSchema = {
   tags: ["messages"],
-  description: "Query message events with pagination and HATEOAS links",
-  querystring: PaginationParamsSchema,
+  description:
+    "Query message events with pagination, filters, and HATEOAS links",
+  querystring: MessageEventsQueryParamsSchema,
   response: {
     200: getGenericResponseSchema(Type.Array(MessageEventSchema)),
     401: HttpError,

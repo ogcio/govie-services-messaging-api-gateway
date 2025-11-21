@@ -1,6 +1,13 @@
+import crypto from "node:crypto";
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
-import { queryMessageEvents } from "../../services/messaging-service.js";
-import { sanitizePagination } from "../../utils/pagination.js";
+import {
+  type MessageEventsQuery,
+  queryMessageEvents,
+} from "../../services/messaging-service.js";
+import {
+  formatAPIResponse,
+  sanitizePagination,
+} from "../../utils/pagination.js";
 import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
@@ -25,13 +32,32 @@ const getMessageEventsRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       request: FastifyRequestTypebox<typeof getMessageEventsRouteSchema>,
       reply: FastifyReplyTypebox<typeof getMessageEventsRouteSchema>,
     ) => {
-      const sanitized = sanitizePagination(request.query);
-      const limit = Number.parseInt(sanitized.limit, 10);
-      const offset = Number.parseInt(sanitized.offset, 10);
+      const token = request.userData?.accessToken;
+      if (!token) {
+        reply.status(401).send({
+          code: "UNAUTHORIZED",
+          detail: "No authorization header found",
+          requestId: crypto.randomUUID(),
+          name: "UnauthorizedError",
+          statusCode: 401,
+        });
+        return;
+      }
+      const messagingSdk = fastify.getMessagingSdk(token);
 
-      // Placeholder - will be fully implemented in Phase 4 (T074)
-      const result = await queryMessageEvents(request, { limit, offset });
-      reply.status(200).send(result as never);
+      const filters: MessageEventsQuery = {
+        ...sanitizePagination(request.query),
+        ...request.query,
+      };
+
+      const page = await queryMessageEvents(messagingSdk, request.log, filters);
+      const response = formatAPIResponse({
+        data: page.data,
+        totalCount: page.totalCount,
+        request,
+        config: fastify.config,
+      });
+      reply.status(200).send(response);
     },
   );
 };

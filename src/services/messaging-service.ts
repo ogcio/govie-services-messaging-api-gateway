@@ -32,8 +32,8 @@ export interface MessageDispatchResult {
 }
 
 export interface MessageEventsQuery {
-  limit: number;
-  offset: number;
+  limit: string;
+  offset: string;
   messageId?: string; // For US3: filter to single message
   recipientId?: string;
   subjectContains?: string;
@@ -46,8 +46,12 @@ export interface MessageEventsQuery {
  * SDK returns data in its own format; we pass through unchanged
  * and wrap with GenericResponse in route handlers
  */
-export interface MessageEventsPage<T = unknown> {
-  data: T[];
+export type MessageEventRecord = Awaited<
+  ReturnType<Messaging["getMessageEvents"]>
+>["data"][number];
+
+export interface MessageEventsPage {
+  data: MessageEventRecord[];
   totalCount: number;
 }
 
@@ -66,22 +70,8 @@ export async function dispatchMessage(
 ): Promise<MessageDispatchResult> {
   return executeWithRetry(
     async () => {
-      const payload: {
-        preferredTransports: ("email" | "lifeEvent")[];
-        recipientUserId: string;
-        security: "confidential" | "public";
-        scheduleAt: string;
-        message: {
-          threadName?: string;
-          subject: string;
-          plainText: string;
-          richText?: string;
-          language: "en" | "ga";
-          excerpt?: string;
-        };
-        attachments?: string[];
-      } = {
-        preferredTransports: ["email"],
+      const payload = {
+        preferredTransports: ["email"] as "email"[],
         recipientUserId: messageData.recipientUserId,
         security: messageData.security,
         scheduleAt: messageData.scheduleAt,
@@ -125,11 +115,34 @@ export async function dispatchMessage(
  * @returns SDK response unchanged (data[], totalCount)
  */
 export async function queryMessageEvents(
-  _messagingSdk: Messaging,
-  _logger: FastifyBaseLogger,
-  _filters: MessageEventsQuery,
+  messagingSdk: Messaging,
+  logger: FastifyBaseLogger,
+  filters: MessageEventsQuery,
 ): Promise<MessageEventsPage> {
-  // Will be implemented in Phase 4 (T064 for US2, T079 for US3)
-  // Both use same SDK method: messagingClient.getMessageEvents(filters)
-  throw new Error("Not implemented");
+  const params: Record<string, string> = {
+    limit: filters.limit,
+    offset: filters.offset,
+  };
+  if (filters.messageId) params.messageId = filters.messageId;
+  if (filters.recipientId) params.recipientId = filters.recipientId;
+  if (filters.subjectContains) params.subjectContains = filters.subjectContains;
+  if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+  if (filters.dateTo) params.dateTo = filters.dateTo;
+  if (filters.recipientEmail) params.recipientEmail = filters.recipientEmail;
+
+  try {
+    const res = await messagingSdk.getMessageEvents(params);
+    if (res.error) {
+      const detail = res.error.detail || "Failed to query message events";
+      throw createError.BadGateway(detail);
+    }
+
+    return {
+      data: res.data,
+      totalCount: res.metadata?.totalCount || res.data.length,
+    };
+  } catch (err) {
+    logger.error({ err }, "queryMessageEvents failed");
+    throw err;
+  }
 }

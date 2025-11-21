@@ -30,15 +30,26 @@ const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       const { messageId } = request.params;
       const query = request.query;
       const sanitized = sanitizePagination(query);
-      const limit = Number.parseInt(sanitized.limit, 10);
-      const offset = Number.parseInt(sanitized.offset, 10);
+
+      const token = request.userData?.accessToken;
+      if (!token) {
+        reply.status(401).send({
+          code: "UNAUTHORIZED",
+          detail: "No authorization header found",
+          requestId: crypto.randomUUID(),
+          name: "UnauthorizedError",
+          statusCode: 401,
+        });
+        return;
+      }
+      const messagingSdk = fastify.getMessagingSdk(token);
 
       // Placeholder - will be fully implemented in Phase 5 (T079, T082)
       // Uses queryMessageEvents with messageId filter
-      const result = await queryMessageEvents(request, {
+      const result = await queryMessageEvents(messagingSdk, request.log, {
         messageId,
-        limit,
-        offset,
+        limit: sanitized.limit,
+        offset: sanitized.offset,
       });
       reply.status(200).send(result as never);
     },
