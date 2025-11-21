@@ -81,7 +81,7 @@ Implementation Tasks:
 - [X] T049 [US1] Add structured logging for each orchestration phase start/end (src/services/message-orchestration.ts)
 - [ ] T050 [US1] Add metrics timers (profile_lookup_duration, upload_phase_duration, cleanup_duration) (src/instrumentation.ts)
 - [X] T051 [P] [US1] Extend schemas for send-message body & response (src/routes/messages/schema.ts)
-- [ ] T052 [US1] Implement route handler logic (src/routes/messages/send-message.ts)
+- [X] T052 [US1] Implement route handler logic (src/routes/messages/send-message.ts)
 - [ ] T053 [US1] Add integration test: successful send with attachments (src/test/routes/messages/send-message.test.ts)
 - [ ] T054 [P] [US1] Add integration test: upload failure triggers atomic abort (src/test/routes/messages/send-message.test.ts)
 - [ ] T055 [P] [US1] Add integration test: share failure triggers atomic abort (src/test/routes/messages/send-message.test.ts)

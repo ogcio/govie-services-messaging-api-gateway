@@ -1,6 +1,11 @@
-import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
-import type { FastifyPluginAsync } from "fastify";
+import type { MultipartFile } from "@fastify/multipart";
+import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
+import createError from "http-errors";
 import { sendMessage } from "../../services/message-orchestration.js";
+import type {
+  FastifyReplyTypebox,
+  FastifyRequestTypebox,
+} from "../shared-routes.js";
 import { sendMessageRouteSchema } from "./schema.js";
 
 /**
@@ -16,18 +21,68 @@ import { sendMessageRouteSchema } from "./schema.js";
  *         502/503/504 transient_failure
  */
 
-const sendMessageRoute: FastifyPluginAsync = async (fastify) => {
-  fastify
-    .withTypeProvider<TypeBoxTypeProvider>()
-    .post(
-      "/v1/messages",
-      { schema: sendMessageRouteSchema },
-      async (request, reply) => {
-        // Placeholder - will be fully implemented in Phase 4 (T073)
-        const result = await sendMessage(request, request.body);
-        reply.status(201).send({ data: result });
-      },
-    );
+const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
+  fastify.post(
+    "/v1/messages",
+    { schema: sendMessageRouteSchema },
+    async (
+      request: FastifyRequestTypebox<typeof sendMessageRouteSchema>,
+      reply: FastifyReplyTypebox<typeof sendMessageRouteSchema>,
+    ) => {
+      const { body, userData } = request;
+      if (!userData || !userData.accessToken) {
+        throw createError.Unauthorized("Missing access token");
+      }
+
+      // Acquire downstream SDK clients via token
+      const profileSdk = fastify.getProfileSdk(userData.accessToken);
+      const uploadSdk = fastify.getUploadSdk(userData.accessToken);
+      const messagingSdk = fastify.getMessagingSdk(userData.accessToken);
+
+      // Collect multipart file parts as attachments (if multipart request)
+      const attachments: MultipartFile[] = [];
+      if (request.isMultipart()) {
+        for await (const part of request.files()) {
+          // Only treat file parts; field parts ignored (already in body)
+          // Fastify's MultipartFile type has toBuffer() etc.
+          attachments.push(part);
+        }
+      }
+
+      // Map request body to orchestration input shape
+      const input = {
+        subject: body.subject,
+        plainTextBody: body.plainTextBody,
+        htmlBody: body.htmlBody,
+        securityLevel: body.securityLevel,
+        language: body.language,
+        scheduledAt: body.scheduledAt,
+        recipient: body.recipient,
+        attachments: attachments.length ? attachments : undefined,
+      };
+
+      try {
+        const result = await sendMessage(
+          {
+            profileSdk,
+            uploadSdk,
+            messagingSdk,
+            userData,
+            logger: fastify.log,
+          },
+          input,
+        );
+
+        // Assemble generic response (metadata minimal for now)
+        reply.status(201).send({ data: { ...result, status: "created" } });
+      } catch (err) {
+        // http-errors already thrown by underlying services; map fallback
+        if ((err as { statusCode?: number }).statusCode) throw err;
+        fastify.log.error({ err }, "send-message handler unexpected error");
+        throw createError.InternalServerError("Failed to send message");
+      }
+    },
+  );
 };
 
 export default sendMessageRoute;
