@@ -1,11 +1,11 @@
 import type { MultipartFile } from "@fastify/multipart";
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import createError from "http-errors";
-import { sendMessage } from "../../services/message-orchestration.js";
+import { sendMessage } from "../../../../services/message-orchestration.js";
 import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
-} from "../shared-routes.js";
+} from "../../../shared-routes.js";
 import { sendMessageRouteSchema } from "./schema.js";
 
 /**
@@ -27,7 +27,7 @@ import { sendMessageRouteSchema } from "./schema.js";
 
 const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
   fastify.post(
-    "/v1/messages",
+    "/",
     {
       schema: sendMessageRouteSchema,
     },

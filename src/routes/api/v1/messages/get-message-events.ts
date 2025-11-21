@@ -3,15 +3,15 @@ import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import {
   type MessageEventsQuery,
   queryMessageEvents,
-} from "../../services/messaging-service.js";
+} from "../../../../services/messaging-service.js";
 import {
   formatAPIResponse,
   sanitizePagination,
-} from "../../utils/pagination.js";
+} from "../../../../utils/pagination.js";
 import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
-} from "../shared-routes.js";
+} from "../../../shared-routes.js";
 import { getMessageEventsRouteSchema } from "./schema.js";
 
 /**
@@ -26,7 +26,7 @@ import { getMessageEventsRouteSchema } from "./schema.js";
 
 const getMessageEventsRoute: FastifyPluginAsyncTypebox = async (fastify) => {
   fastify.get(
-    "/v1/messages/events",
+    "/events",
     { schema: getMessageEventsRouteSchema },
     async (
       request: FastifyRequestTypebox<typeof getMessageEventsRouteSchema>,

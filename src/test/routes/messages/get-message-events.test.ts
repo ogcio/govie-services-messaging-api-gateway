@@ -33,7 +33,7 @@ describe("GET /v1/messages/events integration", () => {
     });
     const res = await app.inject({
       method: "GET",
-      url: "/messages/v1/messages/events?limit=10&offset=10",
+      url: "/api/v1/messages/events?limit=10&offset=10",
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
@@ -110,7 +110,7 @@ describe("GET /v1/messages/events integration", () => {
   it("returns 200 with events and pagination metadata (no filters)", async () => {
     const res = await app.inject({
       method: "GET",
-      url: "/messages/v1/messages/events?limit=10&offset=0",
+      url: "/api/v1/messages/events?limit=10&offset=0",
     });
 
     expect(res.statusCode).toBe(200);
@@ -143,7 +143,7 @@ describe("GET /v1/messages/events integration", () => {
     });
     const res = await app.inject({
       method: "GET",
-      url: `/messages/v1/messages/events?limit=10&offset=0&recipientId=${recipientId}`,
+      url: `/api/v1/messages/events?limit=10&offset=0&recipientId=${recipientId}`,
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
@@ -170,7 +170,7 @@ describe("GET /v1/messages/events integration", () => {
     });
     const res = await app.inject({
       method: "GET",
-      url: `/messages/v1/messages/events?limit=10&offset=0&subjectContains=Special`,
+      url: `/api/v1/messages/events?limit=10&offset=0&subjectContains=Special`,
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
@@ -199,7 +199,7 @@ describe("GET /v1/messages/events integration", () => {
     });
     const res = await app.inject({
       method: "GET",
-      url: `/messages/v1/messages/events?limit=10&offset=0&dateFrom=${earlier}&dateTo=${later}`,
+      url: `/api/v1/messages/events?limit=10&offset=0&dateFrom=${earlier}&dateTo=${later}`,
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
@@ -226,7 +226,7 @@ describe("GET /v1/messages/events integration", () => {
     });
     const res = await app.inject({
       method: "GET",
-      url: `/messages/v1/messages/events?limit=10&offset=0&recipientEmail=${recipientEmail}`,
+      url: `/api/v1/messages/events?limit=10&offset=0&recipientEmail=${recipientEmail}`,
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();

@@ -1,11 +1,11 @@
 import { Type } from "typebox";
-import { getGenericResponseSchema } from "../../schemas/generic-response.js";
-import { HttpError } from "../../schemas/http-error.js";
+import { getGenericResponseSchema } from "../../../../schemas/generic-response.js";
+import { HttpError } from "../../../../schemas/http-error.js";
 import {
   SendMessageRequestSchema,
   SendMessageResponseSchema,
-} from "../../schemas/message.js";
-import { PaginationParamsSchema } from "../../schemas/pagination.js";
+} from "../../../../schemas/message.js";
+import { PaginationParamsSchema } from "../../../../schemas/pagination.js";
 
 // Aggregated route schemas for messaging endpoints (T030)
 

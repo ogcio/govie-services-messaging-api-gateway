@@ -114,7 +114,7 @@ describe("POST /v1/messages integration", () => {
   it("returns 201 and message identifiers (success path, no attachments)", async () => {
     const res = await app.inject({
       method: "POST",
-      url: "/messages/v1/messages",
+      url: "/api/v1/messages",
       payload: baseBody,
     });
     expect(res.statusCode).toBe(201);
@@ -140,7 +140,7 @@ describe("POST /v1/messages integration", () => {
     };
     const res = await app.inject({
       method: "POST",
-      url: "/messages/v1/messages",
+      url: "/api/v1/messages",
       payload: futureBody,
     });
     expect(res.statusCode).toBe(201);
@@ -158,7 +158,7 @@ describe("POST /v1/messages integration", () => {
     };
     const res = await app.inject({
       method: "POST",
-      url: "/messages/v1/messages",
+      url: "/api/v1/messages",
       payload: pastBody,
     });
     expect(res.statusCode).toBe(201);

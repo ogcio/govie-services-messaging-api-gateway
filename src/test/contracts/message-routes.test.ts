@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { messagingRouteSchemas } from "../../routes/messages/schema.js";
+import { messagingRouteSchemas } from "../../routes/api/v1/messages/schema.js";
 import { buildTestServer } from "../build-test-server.js";
 
 /**
