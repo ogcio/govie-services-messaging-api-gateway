@@ -1,4 +1,7 @@
-import type { FastifyRequest } from "fastify";
+import type { Messaging } from "@ogcio/building-blocks-sdk/dist/types/index.js";
+import type { FastifyBaseLogger } from "fastify";
+import createError from "http-errors";
+import { executeWithRetry } from "../utils/retry.js";
 
 /**
  * Messaging Service
@@ -13,13 +16,14 @@ import type { FastifyRequest } from "fastify";
  */
 
 export interface MessageDispatchRequest {
-  organizationId: string;
+  recipientUserId: string;
   subject: string;
-  plainTextContent: string;
-  richTextContent?: string;
-  recipientProfileIds: string[];
-  attachmentUploadIds?: string[];
-  scheduledAt?: string;
+  plainText: string;
+  richText?: string;
+  security: "confidential" | "public";
+  language: "en" | "ga";
+  attachments?: string[];
+  scheduleAt: string;
 }
 
 export interface MessageDispatchResult {
@@ -47,35 +51,65 @@ export interface MessageEventsPage<T = unknown> {
   totalCount: number;
 }
 
-export interface MessagingService {
-  dispatchMessage(
-    request: FastifyRequest,
-    messageData: MessageDispatchRequest,
-  ): Promise<MessageDispatchResult>;
-  /**
-   * Query message events - delegates to SDK getMessageEvents
-   * US2: without messageId → latest events for all messages
-   * US3: with messageId → all events for specific message
-   */
-  queryMessageEvents(
-    request: FastifyRequest,
-    filters: MessageEventsQuery,
-  ): Promise<MessageEventsPage>;
-}
-
 /**
- * Dispatch a message to multiple recipients
+ * Dispatch a message to recipient
  *
- * @param request - Fastify request with auth context
- * @param messageData - Message content and recipients
+ * @param messagingSdk - Messaging SDK client
+ * @param logger - Logger instance
+ * @param messageData - Message content and recipient
  * @returns Message ID and timestamp
  */
 export async function dispatchMessage(
-  _request: FastifyRequest,
-  _messageData: MessageDispatchRequest,
+  messagingSdk: Messaging,
+  logger: FastifyBaseLogger,
+  messageData: MessageDispatchRequest,
 ): Promise<MessageDispatchResult> {
-  // Placeholder - will be implemented in Phase 3 (T041)
-  throw new Error("Not implemented");
+  return executeWithRetry(
+    async () => {
+      const payload: {
+        preferredTransports: ("email" | "lifeEvent")[];
+        recipientUserId: string;
+        security: "confidential" | "public";
+        scheduleAt: string;
+        message: {
+          threadName?: string;
+          subject: string;
+          plainText: string;
+          richText?: string;
+          language: "en" | "ga";
+          excerpt?: string;
+        };
+        attachments?: string[];
+      } = {
+        preferredTransports: ["email"],
+        recipientUserId: messageData.recipientUserId,
+        security: messageData.security,
+        scheduleAt: messageData.scheduleAt,
+        message: {
+          threadName: messageData.subject,
+          subject: messageData.subject,
+          plainText: messageData.plainText,
+          richText: messageData.richText,
+          language: messageData.language,
+        },
+        attachments: messageData.attachments,
+      };
+
+      const res = await messagingSdk.send(payload);
+      if (res.error || !res.data?.id) {
+        const detail = res.error?.detail || "Failed to dispatch message";
+        throw createError.BadGateway(detail);
+      }
+
+      logger.info({ messageId: res.data.id }, "Message dispatched");
+
+      return {
+        messageId: res.data.id,
+        dispatchedAt: new Date().toISOString(),
+      };
+    },
+    { logger },
+  );
 }
 
 /**
@@ -85,22 +119,17 @@ export async function dispatchMessage(
  * - US2 (latest events): Pass filters without messageId
  * - US3 (message history): Pass { messageId, limit, offset }
  *
- * @param request - Fastify request with auth context
+ * @param messagingSdk - Messaging SDK client
+ * @param logger - Logger instance
  * @param filters - Query filters (limit, offset, messageId?, etc.)
  * @returns SDK response unchanged (data[], totalCount)
  */
 export async function queryMessageEvents(
-  _request: FastifyRequest,
+  _messagingSdk: Messaging,
+  _logger: FastifyBaseLogger,
   _filters: MessageEventsQuery,
 ): Promise<MessageEventsPage> {
   // Will be implemented in Phase 4 (T064 for US2, T079 for US3)
   // Both use same SDK method: messagingClient.getMessageEvents(filters)
   throw new Error("Not implemented");
-}
-
-export function createMessagingService(): MessagingService {
-  return {
-    dispatchMessage,
-    queryMessageEvents,
-  };
 }

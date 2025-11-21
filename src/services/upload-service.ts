@@ -1,5 +1,8 @@
 import type { MultipartFile } from "@fastify/multipart";
-import type { FastifyRequest } from "fastify";
+import type { Upload } from "@ogcio/building-blocks-sdk/dist/types/index.js";
+import type { FastifyBaseLogger } from "fastify";
+import createError from "http-errors";
+import { executeWithRetry } from "../utils/retry.js";
 
 /**
  * Upload Service
@@ -28,73 +31,133 @@ export interface CleanupResult {
   successRate: number;
 }
 
-export interface UploadService {
-  uploadFile(
-    request: FastifyRequest,
-    file: MultipartFile,
-  ): Promise<UploadResult>;
-  shareFile(
-    request: FastifyRequest,
-    uploadId: string,
-    recipientProfileId: string,
-  ): Promise<ShareResult>;
-  cleanupFiles(
-    request: FastifyRequest,
-    uploadIds: string[],
-  ): Promise<CleanupResult>;
-}
-
 /**
  * Upload a single file
  *
- * @param request - Fastify request with auth context
+ * @param uploadSdk - Upload SDK client
+ * @param logger - Logger instance
  * @param file - Multipart file stream
  * @returns Upload ID and metadata
  */
 export async function uploadFile(
-  _request: FastifyRequest,
-  _file: MultipartFile,
+  uploadSdk: Upload,
+  logger: FastifyBaseLogger,
+  file: MultipartFile,
 ): Promise<UploadResult> {
-  // Placeholder - will be implemented in Phase 3 (T048)
-  throw new Error("Not implemented");
+  return executeWithRetry(
+    async () => {
+      const buffer = await file.toBuffer();
+      const arrayBuffer = buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength,
+      ) as ArrayBuffer;
+      const fileObj = new File([arrayBuffer], file.filename, {
+        type: file.mimetype,
+      });
+
+      const res = await uploadSdk.uploadFile(fileObj);
+      if (res.error || !res.data?.uploadId) {
+        const detail = res.error?.detail || "Failed to upload file";
+        throw createError.BadGateway(detail);
+      }
+
+      logger.info(
+        { uploadId: res.data.uploadId, filename: file.filename },
+        "File uploaded",
+      );
+
+      return {
+        uploadId: res.data.uploadId,
+        filename: file.filename,
+        sizeBytes: buffer.length,
+        uploadedAt: new Date().toISOString(),
+      };
+    },
+    { logger },
+  );
 }
 
 /**
  * Share an uploaded file with a recipient
  *
- * @param request - Fastify request with auth context
+ * @param uploadSdk - Upload SDK client
+ * @param logger - Logger instance
  * @param uploadId - File upload ID
  * @param recipientProfileId - Recipient profile ID
  * @returns Share ID and metadata
  */
 export async function shareFile(
-  _request: FastifyRequest,
-  _uploadId: string,
-  _recipientProfileId: string,
+  uploadSdk: Upload,
+  logger: FastifyBaseLogger,
+  uploadId: string,
+  recipientProfileId: string,
 ): Promise<ShareResult> {
-  // Placeholder - will be implemented in Phase 3 (T051)
-  throw new Error("Not implemented");
+  return executeWithRetry(
+    async () => {
+      const res = await uploadSdk.shareFile(uploadId, recipientProfileId);
+      if (res.error) {
+        const detail = res.error.detail || "Failed to share file";
+        throw createError.BadGateway(detail);
+      }
+
+      logger.info({ uploadId, recipientProfileId }, "File shared");
+
+      return {
+        shareId: res.data?.fileId || uploadId,
+        uploadId,
+        recipientProfileId,
+        sharedAt: new Date().toISOString(),
+      };
+    },
+    { logger },
+  );
 }
 
 /**
  * Delete uploaded files (best-effort cleanup on failure)
  *
- * @param request - Fastify request with auth context
+ * @param uploadSdk - Upload SDK client
+ * @param logger - Logger instance
  * @param uploadIds - Array of upload IDs to delete
  * @returns Cleanup statistics per FR-031, SC-008
  */
 export async function cleanupFiles(
-  _request: FastifyRequest,
-  _uploadIds: string[],
+  uploadSdk: Upload,
+  logger: FastifyBaseLogger,
+  uploadIds: string[],
 ): Promise<CleanupResult> {
-  // Placeholder - will be implemented in Phase 3 (T058)
-  throw new Error("Not implemented");
-}
+  if (uploadIds.length === 0) {
+    return { deletedCount: 0, attemptedCount: 0, successRate: 1.0 };
+  }
 
-export function createUploadService(): UploadService {
+  const deletionResults = await Promise.allSettled(
+    uploadIds.map((id) => uploadSdk.scheduleFileDeletion(id)),
+  );
+
+  const deleted = deletionResults.filter((r) => {
+    if (r.status !== "fulfilled") return false;
+    const val: unknown = r.value;
+    if (typeof val === "object" && val !== null && "error" in val) {
+      return (val as { error?: unknown }).error == null;
+    }
+    return true;
+  }).length;
+
+  const successRate = deleted / uploadIds.length;
+
+  logger.info(
+    {
+      deleted,
+      attempted: uploadIds.length,
+      successRate: `${(successRate * 100).toFixed(1)}%`,
+      uploadIds,
+    },
+    "Cleanup complete",
+  );
+
   return {
-    uploadFile,
-    shareFile,
-    cleanupFiles,
+    deletedCount: deleted,
+    attemptedCount: uploadIds.length,
+    successRate,
   };
 }
