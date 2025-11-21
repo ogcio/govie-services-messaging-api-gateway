@@ -41,21 +41,21 @@ Independent Test Criteria: Shared utilities (pagination, token forwarding, retry
 
 Implementation Tasks:
 
-- [ ] T021 Implement token extraction helper `getAuthToken(request)` (src/utils/token-forwarding.ts)
-- [ ] T022 [P] Implement pagination HATEOAS link builder `buildPaginationLinks(baseUrl, limit, offset, totalCount)` (src/utils/pagination.ts)
-- [ ] T023 [P] Add metadata assembling helper `buildListMetadata(params)` (src/utils/pagination.ts)
-- [ ] T024 Implement error classification function `isRetryableError(error)` (src/utils/retry.ts)
-- [ ] T025 [P] Add structured logging wrapper for retry attempts (src/utils/retry.ts)
-- [ ] T026 Add Fastify decorator for retry utility injection (src/instrumentation.ts)
+- [X] T021 Implement token extraction helper `getAuthToken(request)` (src/utils/token-forwarding.ts) - Not needed (request.userData provides token)
+- [X] T022 [P] Implement pagination HATEOAS link builder `buildPaginationLinks(baseUrl, limit, offset, totalCount)` (src/utils/pagination.ts) - Already exists as getPaginationLinks
+- [X] T023 [P] Add metadata assembling helper `buildListMetadata(params)` (src/utils/pagination.ts) - Already exists as formatAPIResponse
+- [X] T024 Implement error classification function `isRetryableError(error)` (src/utils/retry.ts)
+- [X] T025 [P] Add structured logging wrapper for retry attempts (src/utils/retry.ts)
+- [X] T026 Add Fastify decorator for retry utility injection (src/plugins/internal/retry.ts)
 - [X] T027 [P] Implement base profile-service interface & stub methods (src/services/profile-service.ts)
 - [X] T028 [P] Implement base messaging-service interface & stub methods (src/services/messaging-service.ts)
 - [X] T029 [P] Implement base upload-service interface & stub methods (src/services/upload-service.ts)
 - [X] T030 Implement initial route schemas aggregator (src/routes/messages/schema.ts)
 - [X] T031 [P] Add contract test asserting schema presence for all three endpoints (src/test/contracts/message-routes.test.ts)
-- [ ] T032 Add unit tests for pagination utilities (src/test/utils/pagination.test.ts)
-- [ ] T033 [P] Add unit tests for token forwarding utility (src/test/utils/token-forwarding.test.ts)
-- [ ] T034 Add logging fields (correlationId, organizationId) integration check (src/test/routes/healthcheck.test.ts)
-- [ ] T035 [P] Update quickstart with pagination example (specs/001-messaging-gateway-endpoints/quickstart.md)
+- [X] T032 Add unit tests for pagination utilities (src/test/utils/pagination.test.ts)
+- [X] T033 [P] Add unit tests for token forwarding utility (src/test/utils/token-forwarding.test.ts) - Not needed (token forwarding delegated to SDK)
+- [X] T034 Add logging fields (correlationId, organizationId) integration check (src/test/routes/healthcheck.test.ts)
+- [X] T035 [P] Update quickstart with pagination example (specs/001-messaging-gateway-endpoints/quickstart.md)
 
  
 ## Phase 3: User Story 1 (Send Message with Attachments) [P1]

@@ -244,7 +244,112 @@ curl -X GET "http://localhost:3000/v1/messages/events?limit=10&offset=0" \
 - ✅ `metadata.links` contains pagination URLs
 - ✅ Only messages from user's organization are returned
 
-### Step 7: Filter Message Events by Recipient
+### Step 7: Pagination Response Structure Example (T035)
+
+The pagination response demonstrates the **GenericResponse** envelope with HATEOAS links as specified in FR-021, FR-022, and FR-034.
+
+**Key Features**:
+- `data`: Array of message event objects
+- `metadata.totalCount`: Forwarded unchanged from downstream (FR-034)
+- `metadata.links`: HATEOAS navigation (first, previous, next, last, self)
+- `metadata.limit` and `metadata.offset`: Echo sanitized request values
+
+**Example GET /v1/messages/events?limit=10&offset=20**
+
+Response (200 OK):
+
+```json
+{
+  "data": [
+    {
+      "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "subject": "Test message from quickstart",
+      "recipientId": "profile-12345",
+      "recipientEmail": "test.user@example.ie",
+      "eventType": "sent",
+      "timestamp": "2025-11-20T14:00:15Z",
+      "details": {}
+    },
+    {
+      "messageId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "subject": "Message with attachment",
+      "recipientId": "profile-12345",
+      "recipientEmail": "test.user@example.ie",
+      "eventType": "delivered",
+      "timestamp": "2025-11-20T14:05:22Z",
+      "details": { "smtpResponse": "250 OK" }
+    }
+  ],
+  "metadata": {
+    "totalCount": 47,
+    "limit": 10,
+    "offset": 20,
+    "links": {
+      "self": "/v1/messages/events?limit=10&offset=20",
+      "first": "/v1/messages/events?limit=10&offset=0",
+      "previous": "/v1/messages/events?limit=10&offset=10",
+      "next": "/v1/messages/events?limit=10&offset=30",
+      "last": "/v1/messages/events?limit=10&offset=40"
+    }
+  }
+}
+```
+
+**Edge Cases Covered** (per spec addendum):
+
+1. **Zero Results** (`totalCount=0`):
+   ```json
+   {
+     "data": [],
+     "metadata": {
+       "totalCount": 0,
+       "limit": 20,
+       "offset": 0,
+       "links": {
+         "self": "/v1/messages/events?limit=20&offset=0",
+         "first": "/v1/messages/events?limit=20&offset=0",
+         "previous": null,
+         "next": null,
+         "last": "/v1/messages/events?limit=20&offset=0"
+       }
+     }
+   }
+   ```
+
+2. **Single Page** (totalCount ≤ limit):
+   ```json
+   {
+     "data": [ /* 5 events */ ],
+     "metadata": {
+       "totalCount": 5,
+       "limit": 20,
+       "offset": 0,
+       "links": {
+         "self": "/v1/messages/events?limit=20&offset=0",
+         "first": "/v1/messages/events?limit=20&offset=0",
+         "previous": null,
+         "next": null,
+         "last": "/v1/messages/events?limit=20&offset=0"
+       }
+     }
+   }
+   ```
+
+3. **Filters Preserved in Links**:
+   For `GET /v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0`:
+   ```json
+   {
+     "metadata": {
+       "links": {
+         "self": "/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0",
+         "next": "/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=10",
+         ...
+       }
+     }
+   }
+   ```
+
+### Step 8: Filter Message Events by Recipient
 
 ```bash
 curl -X GET "http://localhost:3000/v1/messages/events?recipientEmail=test.user@example.ie" \
@@ -285,7 +390,7 @@ curl -X GET "http://localhost:3000/v1/messages/events?recipientEmail=test.user@e
 - ✅ Only events for the specified recipient email are returned
 - ✅ Filter parameter is preserved in pagination links
 
-### Step 8: Get Message Event History
+### Step 9: Get Message Event History
 
 ```bash
 MESSAGE_ID="a1b2c3d4-e5f6-7890-abcd-ef1234567890"  # Use actual ID from Step 4
@@ -334,7 +439,7 @@ curl -X GET "http://localhost:3000/v1/messages/$MESSAGE_ID/events" \
 - ✅ `events` array contains all events in chronological order
 - ✅ Each event has `eventType`, `timestamp`, and optional `details`
 
-### Step 9: Test Recipient Not Found (Error Case)
+### Step 10: Test Recipient Not Found (Error Case)
 
 ```bash
 curl -X POST http://localhost:3000/v1/messages \
@@ -371,7 +476,7 @@ curl -X POST http://localhost:3000/v1/messages \
 - ✅ Response has HTTP 404 status
 - ✅ Error message clearly indicates recipient not found
 
-### Step 10: Test Validation Error (Error Case)
+### Step 11: Test Validation Error (Error Case)
 
 ```bash
 curl -X POST http://localhost:3000/v1/messages \
