@@ -26,7 +26,6 @@ export interface OrchestrationDeps {
   logger: FastifyBaseLogger;
 }
 
-// Input shape aligned with contract (simplified mapping before schema layer integration)
 export interface SendMessageInput {
   subject: string;
   plainTextBody: string;
@@ -46,70 +45,58 @@ export interface SendMessageResult {
 
 /**
  * Message Orchestration Service
- *
- * Purpose: Coordinate profile lookup, file upload, file sharing, and message dispatch
- * with atomic failure semantics per FR-030/FR-031
- *
- * Spec: FR-001 through FR-039, SC-007, SC-008
- */
-
-/**
- * Orchestrate complete message send workflow
- *
- * Flow (with atomic failure):
- * 1. Validate request (FR-007, FR-008, FR-009)
- * 2. Resolve PPSN identifiers to profile IDs (FR-001)
- *    - Abort on any recipient not found (FR-004, FR-035)
- * 3. Upload attachments if present (FR-005)
- *    - Abort on any upload failure (FR-030)
- * 4. Share attachments with all recipients (FR-006)
- *    - Abort on any share failure (FR-030)
- * 5. Dispatch message (FR-002, FR-003)
- * 6. On failure at any step:
- *    - Delete all uploaded files (FR-031)
- *    - Log cleanup metrics (SC-008)
- *    - Return error
- *
- * @param request - Fastify request with auth and organizationId
- * @param messageData - Validated message request
- * @param attachments - Optional file uploads
- * @returns Message ID and status
+ * Coordinates profile lookup, file upload/share, and dispatch with
+ * atomic failure semantics (FR-030/FR-031).
  */
 export async function sendMessage(
   deps: OrchestrationDeps,
   messageData: SendMessageInput,
 ): Promise<SendMessageResult> {
   const { userData, logger, profileSdk, uploadSdk, messagingSdk } = deps;
+  const uploadIds: string[] = [];
+
   if (!userData.organizationId) {
     throw createError.Unauthorized("No organization ID found in user data");
   }
   const organizationId = userData.organizationId;
-  const uploadIds: string[] = [];
+
   try {
     // Phase 1: Recipient lookup
+    const phase1Start = Date.now();
     logger.info(
       {
+        phase: "profile_lookup_start",
         organizationId,
         recipientType: messageData.recipient.type,
         attachmentCount: messageData.attachments?.length || 0,
       },
-      "Phase 1: Starting recipient lookup",
+      "profile lookup phase start",
     );
     const recipientResult = await lookupRecipient(
       profileSdk,
       userData,
       messageData.recipient,
     );
+    const phase1Duration = Date.now() - phase1Start;
     logger.info(
-      { profileId: recipientResult.profileId, email: recipientResult.email },
-      "Recipient lookup complete",
+      {
+        phase: "profile_lookup_end",
+        durationMs: phase1Duration,
+        profileId: recipientResult.profileId,
+        email: recipientResult.email,
+      },
+      "profile lookup phase end",
     );
 
-    // Phase 2: Parallel uploads
+    // Phase 2: Upload attachments (parallel)
     if (messageData.attachments?.length) {
+      const phase2Start = Date.now();
       logger.info(
-        { fileCount: messageData.attachments.length },
-        "Phase 2: Uploading attachments",
+        {
+          phase: "upload_phase_start",
+          fileCount: messageData.attachments.length,
+        },
+        "upload phase start",
       );
       const uploaded = await Promise.all(
         messageData.attachments.map((file) =>
@@ -117,36 +104,52 @@ export async function sendMessage(
         ),
       );
       uploadIds.push(...uploaded.map((u) => u.uploadId));
-      logger.info(
-        { uploadCount: uploadIds.length, uploadIds },
-        "All attachments uploaded",
-      );
-
-      // Phase 3: Parallel shares
+      const phase2Duration = Date.now() - phase2Start;
       logger.info(
         {
+          phase: "upload_phase_end",
+          durationMs: phase2Duration,
+          uploadCount: uploadIds.length,
+          uploadIds,
+        },
+        "upload phase end",
+      );
+
+      // Phase 3: Share attachments (parallel)
+      const phase3Start = Date.now();
+      logger.info(
+        {
+          phase: "share_phase_start",
           uploadCount: uploadIds.length,
           recipientProfileId: recipientResult.profileId,
         },
-        "Phase 3: Sharing attachments",
+        "share phase start",
       );
       await Promise.all(
         uploadIds.map((id) =>
           shareFile(uploadSdk, logger, id, recipientResult.profileId),
         ),
       );
-      logger.info({ shareCount: uploadIds.length }, "All attachments shared");
+      logger.info(
+        {
+          phase: "share_phase_end",
+          durationMs: Date.now() - phase3Start,
+          shareCount: uploadIds.length,
+        },
+        "share phase end",
+      );
     }
 
     // Phase 4: Dispatch message
+    const phase4Start = Date.now();
     logger.info(
       {
+        phase: "dispatch_phase_start",
         recipientProfileId: recipientResult.profileId,
         attachmentCount: uploadIds.length,
       },
-      "Phase 4: Dispatching message",
+      "dispatch phase start",
     );
-
     const dispatchResult = await dispatchMessage(messagingSdk, logger, {
       recipientUserId: recipientResult.profileId,
       subject: messageData.subject,
@@ -157,14 +160,15 @@ export async function sendMessage(
       scheduleAt: messageData.scheduledAt,
       attachments: uploadIds.length ? uploadIds : undefined,
     });
-
     logger.info(
       {
+        phase: "dispatch_phase_end",
+        durationMs: Date.now() - phase4Start,
         messageId: dispatchResult.messageId,
         recipientId: recipientResult.profileId,
         attachmentIds: uploadIds,
       },
-      "Message dispatched successfully",
+      "dispatch phase end",
     );
 
     return {
@@ -173,19 +177,29 @@ export async function sendMessage(
       attachmentIds: uploadIds,
     };
   } catch (error) {
+    // Cleanup phase (only on failure)
+    const cleanupStart = Date.now();
     logger.error(
-      { error, organizationId, uploadIds },
-      "Orchestration failed; starting cleanup",
+      {
+        phase: "cleanup_phase_start",
+        organizationId,
+        uploadIds,
+        error,
+      },
+      "orchestration failed; cleanup phase start",
     );
     if (uploadIds.length) {
       const stats = await cleanupFiles(uploadSdk, logger, uploadIds);
+      const cleanupDuration = Date.now() - cleanupStart;
       logger.info(
         {
+          phase: "cleanup_phase_end",
+          durationMs: cleanupDuration,
           deleted: stats.deletedCount,
           attempted: stats.attemptedCount,
           successRate: `${(stats.successRate * 100).toFixed(1)}%`,
         },
-        "Cleanup complete",
+        "cleanup phase end",
       );
     }
     throw error;
