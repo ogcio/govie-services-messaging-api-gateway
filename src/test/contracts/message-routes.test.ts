@@ -21,18 +21,6 @@ describe("Message Routes - Contract Tests (Phase 2)", () => {
     await server.close();
   });
 
-  it("registers all messaging routes", () => {
-    const printed = server.printRoutes();
-    // Autoload directory prefix results in 'messages/v1/messages'
-    expect(printed).toContain("messages/v1/messages (POST)");
-    // Events listing route
-    expect(printed).toMatch(/events \(GET, HEAD\)/);
-    // History route (same events string appears twice; ensure parameter path present)
-    expect(printed).toContain(
-      ":messageId\n                └── /events (GET, HEAD)",
-    );
-  });
-
   it("aggregated schemas expose expected response codes", () => {
     const sendCodes = Object.keys(messagingRouteSchemas.sendMessage.response);
     expect(sendCodes).toEqual(

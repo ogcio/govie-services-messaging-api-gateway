@@ -30,13 +30,12 @@ const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       const { messageId } = request.params;
       const query = request.query;
       const sanitized = sanitizePagination(query);
-
       const token = request.userData?.accessToken;
       if (!token) {
         reply.status(401).send({
           code: "UNAUTHORIZED",
           detail: "No authorization header found",
-          requestId: crypto.randomUUID(),
+          requestId: request.id,
           name: "UnauthorizedError",
           statusCode: 401,
         });
@@ -55,7 +54,7 @@ const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
           reply.status(404).send({
             code: "NOT_FOUND",
             detail: `No events found for messageId ${messageId}`,
-            requestId: crypto.randomUUID(),
+            requestId: request.id,
             name: "NotFoundError",
             statusCode: 404,
           });
@@ -90,7 +89,7 @@ const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
             reply.status(403).send({
               code: "ORG_MISSING",
               detail: "Organization missing or forbidden",
-              requestId: crypto.randomUUID(),
+              requestId: request.id,
               name: "ForbiddenError",
               statusCode: 403,
             });

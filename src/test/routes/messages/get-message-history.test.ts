@@ -1,17 +1,7 @@
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify/types/instance.js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildTestServer } from "../../build-test-server.js";
-
-function fakeUuid(label: string) {
-  return `${label}-xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(
-    /[xy]/g,
-    (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    },
-  );
-}
 
 describe("GET /v1/messages/:messageId/events integration", () => {
   let app: FastifyInstance;
@@ -40,10 +30,10 @@ describe("GET /v1/messages/:messageId/events integration", () => {
   });
 
   it("returns event history for valid messageId", async () => {
-    const messageId = fakeUuid("msg");
+    const messageId = randomUUID();
     const events = [
       {
-        id: fakeUuid("event1"),
+        id: randomUUID(),
         messageId,
         subject: "Test subject",
         receiverFullName: "John Doe",
@@ -52,7 +42,7 @@ describe("GET /v1/messages/:messageId/events integration", () => {
         scheduledAt: "2023-01-01T10:00:00.000Z",
       },
       {
-        id: fakeUuid("event2"),
+        id: randomUUID(),
         messageId,
         subject: "Test subject",
         receiverFullName: "John Doe",
@@ -79,7 +69,7 @@ describe("GET /v1/messages/:messageId/events integration", () => {
   });
 
   it("returns 404 for non-existent messageId", async () => {
-    const messageId = fakeUuid("notfound");
+    const messageId = randomUUID();
     messagingSdk.getMessageEvents.mockResolvedValueOnce({
       data: [],
       metadata: { totalCount: 0 },
@@ -88,26 +78,37 @@ describe("GET /v1/messages/:messageId/events integration", () => {
       method: "GET",
       url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
     });
+    console.log({ GIANNI: res.body });
     expect(res.statusCode).toBe(404);
     const payload = res.json();
     expect(payload.code).toBe("NOT_FOUND");
   });
 
   it("returns 401 if no token", async () => {
-    const messageId = fakeUuid("msg");
-    // Remove userData for this request
-    const res = await app.inject({
-      method: "GET",
-      url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
-      headers: {},
-    });
-    expect(res.statusCode).toBe(401);
-    const payload = res.json();
-    expect(payload.code).toBe("UNAUTHORIZED");
+    const noTokenApp = await buildTestServer();
+    try {
+      const messagingSdkNoToken = {
+        getMessageEvents: vi.fn(),
+      };
+      noTokenApp.getMessagingSdk = vi.fn().mockReturnValue(messagingSdkNoToken);
+      await noTokenApp.ready();
+      const messageId = randomUUID();
+      // Remove userData for this request
+      const res = await noTokenApp.inject({
+        method: "GET",
+        url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
+        headers: {},
+      });
+      expect(res.statusCode).toBe(401);
+      const payload = res.json();
+      expect(payload.code).toBe("UNAUTHORIZED");
+    } finally {
+      await noTokenApp.close();
+    }
   });
 
   it("returns 403 if org missing or forbidden", async () => {
-    const messageId = fakeUuid("msg");
+    const messageId = randomUUID();
     messagingSdk.getMessageEvents.mockRejectedValueOnce({ statusCode: 403 });
     const res = await app.inject({
       method: "GET",
