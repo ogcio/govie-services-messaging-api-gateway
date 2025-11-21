@@ -102,8 +102,8 @@ Independent Test Criteria: Integration tests query events with no filters, each 
 
 Implementation Tasks:
 
-- [ ] T064 [US2] Implement messaging-service `getLatestMessageEvents(filters)` (src/services/messaging-service.ts)
-- [ ] T065 [P] [US2] Implement filter transformation logic (subject substring, date range, recipient identifiers) (src/services/messaging-service.ts)
+- [ ] T064 [US2] Implement messaging-service `queryMessageEvents(filters)` using SDK getMessageEvents (src/services/messaging-service.ts)
+- [ ] T065 [P] [US2] Map query filters to SDK params (subject substring, date range, recipient identifiers) (src/services/messaging-service.ts)
 - [ ] T066 [US2] Integrate pagination link builder in route handler (src/routes/messages/get-message-events.ts)
 - [ ] T067 [US2] Extend schemas for query parameters & response (src/routes/messages/schema.ts)
 - [ ] T068 [US2] Implement route handler logic (src/routes/messages/get-message-events.ts)
@@ -124,10 +124,12 @@ Implementation Tasks:
 Story Goal: Public servant retrieves chronological event history for a specific message within their organization.
 Independent Test Criteria: Integration tests fetch events for valid messageId, 404 for unknown id, 401 for unauthorized, verify chronological order.
 
+Note: Uses same SDK method as US2 (getMessageEvents) but with messageId parameter to filter to single message.
+
 Implementation Tasks:
 
-- [ ] T079 [US3] Implement messaging-service `getMessageHistory(messageId)` (src/services/messaging-service.ts)
-- [ ] T080 [P] [US3] Implement chronological sort utility (if downstream unsorted) (src/services/messaging-service.ts)
+- [ ] T079 [US3] Use queryMessageEvents with messageId filter (already unified in messaging-service.ts)
+- [ ] T080 [P] [US3] Verify SDK returns chronological sort (no additional sorting needed) (src/services/messaging-service.ts)
 - [ ] T081 [US3] Extend schemas for message history response (src/routes/messages/schema.ts)
 - [ ] T082 [US3] Implement route handler logic (src/routes/messages/get-message-history.ts)
 - [ ] T083 [P] [US3] Add integration test: valid message history returned (src/test/routes/messages/get-message-history.test.ts)
