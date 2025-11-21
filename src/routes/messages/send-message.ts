@@ -30,12 +30,6 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
     "/v1/messages",
     {
       schema: sendMessageRouteSchema,
-      attachFieldsToBody: "keyValues" as const,
-      onFile: async (part: MultipartFile) => {
-        // Collect file metadata without buffering the stream
-        // The stream will be consumed later during upload
-        part.file; // Access file stream but don't consume it yet
-      },
     },
     async (
       request: FastifyRequestTypebox<typeof sendMessageRouteSchema>,
@@ -57,7 +51,7 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
         const parts = request.parts();
         for await (const part of parts) {
           if (part.type === "file") {
-            attachments.push(part as MultipartFile);
+            attachments.push(part);
           }
         }
       }

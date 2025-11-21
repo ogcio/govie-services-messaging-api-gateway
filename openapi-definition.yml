@@ -216,9 +216,110 @@ paths:
     post:
       tags:
         - messages
-      description: Send a message with optional attachments. Use JSON for no
-        attachments, multipart/form-data with 'body' field + files for
-        attachments.
+      description: Send a message with optional attachments (multipart/form-data)
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - subject
+                - plainTextBody
+                - securityLevel
+                - language
+                - scheduledAt
+                - recipient
+              properties:
+                subject:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                plainTextBody:
+                  type: string
+                  minLength: 1
+                htmlBody:
+                  type: string
+                securityLevel:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - confidential
+                    - type: string
+                      enum:
+                        - public
+                language:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - en
+                    - type: string
+                      enum:
+                        - ga
+                scheduledAt:
+                  type: string
+                  format: date-time
+                  description: ISO 8601 timestamp (Europe/Dublin TZ assumed)
+                recipient:
+                  anyOf:
+                    - type: object
+                      required:
+                        - type
+                        - firstName
+                        - lastName
+                        - email
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - email
+                        firstName:
+                          type: string
+                          minLength: 1
+                        lastName:
+                          type: string
+                          minLength: 1
+                        email:
+                          type: string
+                          format: email
+                        ppsn:
+                          type: string
+                        dateOfBirth:
+                          type: string
+                          format: date
+                    - type: object
+                      required:
+                        - type
+                        - ppsn
+                        - dateOfBirth
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - identity
+                        ppsn:
+                          type: string
+                          minLength: 7
+                        dateOfBirth:
+                          type: string
+                          format: date
+                attachmentsMeta:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - filename
+                      - mimeType
+                      - sizeBytes
+                    properties:
+                      filename:
+                        type: string
+                      mimeType:
+                        type: string
+                      sizeBytes:
+                        type: number
+                        minimum: 1
+                  maxItems: 10
+        required: true
       responses:
         "201":
           description: Default Response
