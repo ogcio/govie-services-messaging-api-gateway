@@ -31,8 +31,20 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
     "/",
     {
       schema: sendMessageRouteSchema,
-      preValidation: (req, res) =>
-        fastify.gatewayCheckPermissions(req, res, []),
+      preValidation: async (request, res) => {
+        await fastify.gatewayCheckPermissions(request, res, []);
+        if (request.isMultipart() && request.body) {
+          // Parse recipient JSON string when sent via multipart/form-data
+          const body = request.body as Record<string, unknown>;
+          if (typeof body.recipient === "string") {
+            try {
+              body.recipient = JSON.parse(body.recipient);
+            } catch {
+              throw createError.BadRequest("Invalid recipient JSON format");
+            }
+          }
+        }
+      },
     },
     async (
       request: FastifyRequestTypebox<typeof sendMessageRouteSchema>,
