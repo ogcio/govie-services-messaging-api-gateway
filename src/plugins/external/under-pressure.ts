@@ -13,6 +13,10 @@ export const autoConfig = {
     type: string,
     value: number | string | undefined | null,
   ) => {
+    if (process.env.NODE_ENV === "test") {
+      return;
+    }
+
     req.log.warn({ type, value }, "SYSTEM_UNDER_PRESSURE");
 
     rep

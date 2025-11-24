@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify/types/instance.js";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { buildTestServer } from "../../build-test-server.js";
 
 describe("GET /v1/messages/:messageId/events integration", () => {
@@ -18,11 +27,19 @@ describe("GET /v1/messages/:messageId/events integration", () => {
       };
       done();
     });
+
+    await app.ready();
+  });
+
+  beforeEach(() => {
     messagingSdk = {
       getMessageEvents: vi.fn(),
     };
     app.getMessagingSdk = vi.fn().mockReturnValue(messagingSdk);
-    await app.ready();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   afterAll(async () => {
@@ -78,7 +95,6 @@ describe("GET /v1/messages/:messageId/events integration", () => {
       method: "GET",
       url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
     });
-
     expect(res.statusCode).toBe(404);
     const payload = res.json();
     expect(payload.code).toBe("NOT_FOUND");
