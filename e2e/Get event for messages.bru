@@ -4,9 +4,9 @@ meta {
   seq: 2
 }
 
-get {
+post {
   url: {{apiGatewayUrl}}/api/v1/messages/events?limit=1&offset=0
-  body: none
+  body: json
   auth: bearer
 }
 
@@ -17,6 +17,12 @@ params:query {
 
 auth:bearer {
   token: {{accessToken}}
+}
+
+body:json {
+  {
+    
+  }
 }
 
 vars:post-response {

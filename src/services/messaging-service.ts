@@ -40,6 +40,7 @@ export interface MessageEventsQuery {
   dateFrom?: string;
   dateTo?: string;
   recipientEmail?: string;
+  status?: string;
 }
 
 /**
@@ -125,10 +126,11 @@ export async function queryMessageEvents(
   };
   if (filters.messageId) params.messageId = filters.messageId;
   if (filters.recipientId) params.recipientId = filters.recipientId;
-  if (filters.subjectContains) params.subjectContains = filters.subjectContains;
+  if (filters.subjectContains) params.search = filters.subjectContains;
   if (filters.dateFrom) params.dateFrom = filters.dateFrom;
   if (filters.dateTo) params.dateTo = filters.dateTo;
   if (filters.recipientEmail) params.recipientEmail = filters.recipientEmail;
+  if (filters.status) params.status = filters.status;
 
   try {
     const res = await messagingSdk.getMessageEvents(params);

@@ -52,12 +52,24 @@ const MessageEventSchema = Type.Object({
   }),
 });
 
+const MessageStatus = {
+  Delivered: "delivered",
+  Scheduled: "scheduled",
+  Opened: "opened",
+  Failed: "failed",
+};
+
 const GetLatestEventBodySchema = Type.Object({
   recipientEmail: Type.Optional(Type.String({ format: "email" })),
   recipientId: Type.Optional(Type.String({ format: "uuid" })),
   subjectContains: Type.Optional(Type.String()),
   dateFrom: Type.Optional(Type.String({ format: "date-time" })),
   dateTo: Type.Optional(Type.String({ format: "date-time" })),
+  status: Type.Optional(
+    Type.Enum(MessageStatus, {
+      description: "Filter events by status",
+    }),
+  ),
 });
 
 export const getLatestEventForMessagesRouteSchema = {
@@ -65,7 +77,7 @@ export const getLatestEventForMessagesRouteSchema = {
   querystring: PaginationParamsSchema,
   description:
     "Query message events with pagination, filters, and HATEOAS links",
-  body: GetLatestEventBodySchema,
+  body: Type.Optional(GetLatestEventBodySchema),
   response: {
     200: getGenericResponseSchema(Type.Array(MessageEventSchema)),
     401: HttpError,

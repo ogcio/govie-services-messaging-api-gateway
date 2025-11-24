@@ -47,7 +47,7 @@ const getLatestEventForMessages: FastifyPluginAsyncTypebox = async (
 
       const filters: MessageEventsQuery = {
         ...sanitizePagination(request.query),
-        ...request.body,
+        ...(request.body ?? {}),
       };
 
       const page = await queryMessageEvents(messagingSdk, request.log, filters);

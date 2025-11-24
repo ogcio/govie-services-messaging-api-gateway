@@ -343,6 +343,13 @@ paths:
                 dateTo:
                   type: string
                   format: date-time
+                status:
+                  enum:
+                    - delivered
+                    - scheduled
+                    - opened
+                    - failed
+                  description: Filter events by status
       parameters:
         - schema:
             type: string
