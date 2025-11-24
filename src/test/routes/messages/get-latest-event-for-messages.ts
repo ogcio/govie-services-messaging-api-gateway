@@ -32,7 +32,7 @@ describe("GET /v1/messages/events integration", () => {
       metadata: { totalCount: 25 },
     });
     const res = await app.inject({
-      method: "GET",
+      method: "POST",
       url: "/api/v1/messages/events?limit=10&offset=10",
     });
     expect(res.statusCode).toBe(200);
@@ -99,7 +99,7 @@ describe("GET /v1/messages/events integration", () => {
 
   it("returns 200 with events and pagination metadata (no filters)", async () => {
     const res = await app.inject({
-      method: "GET",
+      method: "POST",
       url: "/api/v1/messages/events?limit=10&offset=0",
     });
 
@@ -132,8 +132,9 @@ describe("GET /v1/messages/events integration", () => {
       metadata: { totalCount: 1 },
     });
     const res = await app.inject({
-      method: "GET",
-      url: `/api/v1/messages/events?limit=10&offset=0&recipientId=${recipientId}`,
+      method: "POST",
+      url: `/api/v1/messages/events?limit=10&offset=0`,
+      body: { recipientId },
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
@@ -159,8 +160,9 @@ describe("GET /v1/messages/events integration", () => {
       metadata: { totalCount: 1 },
     });
     const res = await app.inject({
-      method: "GET",
-      url: `/api/v1/messages/events?limit=10&offset=0&subjectContains=Special`,
+      method: "POST",
+      url: `/api/v1/messages/events?limit=10&offset=0`,
+      body: { subjectContains: "Special" },
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
@@ -188,8 +190,9 @@ describe("GET /v1/messages/events integration", () => {
       metadata: { totalCount: 1 },
     });
     const res = await app.inject({
-      method: "GET",
-      url: `/api/v1/messages/events?limit=10&offset=0&dateFrom=${earlier}&dateTo=${later}`,
+      method: "POST",
+      url: `/api/v1/messages/events?limit=10&offset=0`,
+      body: { dateFrom: earlier, dateTo: later },
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
@@ -215,8 +218,9 @@ describe("GET /v1/messages/events integration", () => {
       metadata: { totalCount: 1 },
     });
     const res = await app.inject({
-      method: "GET",
-      url: `/api/v1/messages/events?limit=10&offset=0&recipientEmail=${recipientEmail}`,
+      method: "POST",
+      url: `/api/v1/messages/events?limit=10&offset=0`,
+      body: { recipientEmail },
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();

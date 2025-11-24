@@ -52,22 +52,20 @@ const MessageEventSchema = Type.Object({
   }),
 });
 
-const MessageEventsQueryParamsSchema = Type.Intersect([
-  PaginationParamsSchema,
-  Type.Object({
-    recipientEmail: Type.Optional(Type.String({ format: "email" })),
-    recipientId: Type.Optional(Type.String({ format: "uuid" })),
-    subjectContains: Type.Optional(Type.String()),
-    dateFrom: Type.Optional(Type.String({ format: "date-time" })),
-    dateTo: Type.Optional(Type.String({ format: "date-time" })),
-  }),
-]);
+const GetLatestEventBodySchema = Type.Object({
+  recipientEmail: Type.Optional(Type.String({ format: "email" })),
+  recipientId: Type.Optional(Type.String({ format: "uuid" })),
+  subjectContains: Type.Optional(Type.String()),
+  dateFrom: Type.Optional(Type.String({ format: "date-time" })),
+  dateTo: Type.Optional(Type.String({ format: "date-time" })),
+});
 
-export const getMessageEventsRouteSchema = {
+export const getLatestEventForMessagesRouteSchema = {
   tags: ["messages"],
+  querystring: PaginationParamsSchema,
   description:
     "Query message events with pagination, filters, and HATEOAS links",
-  querystring: MessageEventsQueryParamsSchema,
+  body: GetLatestEventBodySchema,
   response: {
     200: getGenericResponseSchema(Type.Array(MessageEventSchema)),
     401: HttpError,
@@ -107,6 +105,6 @@ export const getMessageHistoryRouteSchema = {
 
 export const messagingRouteSchemas = {
   sendMessage: sendMessageRouteSchema,
-  getMessageEvents: getMessageEventsRouteSchema,
+  getMessageEvents: getLatestEventForMessagesRouteSchema,
   getMessageHistory: getMessageHistoryRouteSchema,
 };

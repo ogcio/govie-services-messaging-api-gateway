@@ -319,10 +319,30 @@ paths:
                   statusCode:
                     type: number
   /api/v1/messages/events:
-    get:
+    post:
       tags:
         - messages
       description: Query message events with pagination, filters, and HATEOAS links
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipientEmail:
+                  type: string
+                  format: email
+                recipientId:
+                  type: string
+                  format: uuid
+                subjectContains:
+                  type: string
+                dateFrom:
+                  type: string
+                  format: date-time
+                dateTo:
+                  type: string
+                  format: date-time
       parameters:
         - schema:
             type: string
@@ -342,35 +362,6 @@ paths:
           required: false
           description: Indicates the maximum number (100) of items that will be returned
             in a single request
-        - schema:
-            type: string
-            format: email
-          in: query
-          name: recipientEmail
-          required: false
-        - schema:
-            type: string
-            format: uuid
-          in: query
-          name: recipientId
-          required: false
-        - schema:
-            type: string
-          in: query
-          name: subjectContains
-          required: false
-        - schema:
-            type: string
-            format: date-time
-          in: query
-          name: dateFrom
-          required: false
-        - schema:
-            type: string
-            format: date-time
-          in: query
-          name: dateTo
-          required: false
       responses:
         "200":
           description: Default Response

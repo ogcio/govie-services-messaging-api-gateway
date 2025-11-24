@@ -12,7 +12,7 @@ import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
 } from "../../../shared-routes.js";
-import { getMessageEventsRouteSchema } from "./schema.js";
+import { getLatestEventForMessagesRouteSchema } from "./schema.js";
 
 /**
  * GET /v1/messages/events
@@ -27,16 +27,18 @@ import { getMessageEventsRouteSchema } from "./schema.js";
 const getLatestEventForMessages: FastifyPluginAsyncTypebox = async (
   fastify,
 ) => {
-  fastify.get(
+  fastify.post(
     "/events",
     {
-      schema: getMessageEventsRouteSchema,
+      schema: getLatestEventForMessagesRouteSchema,
       preValidation: (req, res) =>
         fastify.gatewayCheckPermissions(req, res, []),
     },
     async (
-      request: FastifyRequestTypebox<typeof getMessageEventsRouteSchema>,
-      reply: FastifyReplyTypebox<typeof getMessageEventsRouteSchema>,
+      request: FastifyRequestTypebox<
+        typeof getLatestEventForMessagesRouteSchema
+      >,
+      reply: FastifyReplyTypebox<typeof getLatestEventForMessagesRouteSchema>,
     ) => {
       const token = requireAuthToken(request, reply);
       if (!token) return;
@@ -45,7 +47,7 @@ const getLatestEventForMessages: FastifyPluginAsyncTypebox = async (
 
       const filters: MessageEventsQuery = {
         ...sanitizePagination(request.query),
-        ...request.query,
+        ...request.body,
       };
 
       const page = await queryMessageEvents(messagingSdk, request.log, filters);
