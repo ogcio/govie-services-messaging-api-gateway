@@ -1,15 +1,48 @@
-import { createSecretKey } from "node:crypto";
-import fastify, { type FastifyReply, type FastifyRequest } from "fastify";
+import fastify, { type FastifyInstance } from "fastify";
 import fp from "fastify-plugin";
-import { SignJWT } from "jose";
+import type { JSONWebKeySet } from "jose";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import buildServer from "../server.js";
 
 declare module "fastify" {
   interface FastifyInstance {}
 }
 
+// Cache the key pair globally to avoid regenerating for each test
+let cachedKeyPair: { publicKey: CryptoKey; privateKey: CryptoKey } | null =
+  null;
+let cachedJwks: JSONWebKeySet | null = null;
+
+async function getOrCreateKeyPair() {
+  if (!cachedKeyPair) {
+    cachedKeyPair = await generateKeyPair("RS256", { extractable: true });
+    const publicJwk = await exportJWK(cachedKeyPair.publicKey);
+    cachedJwks = {
+      keys: [
+        {
+          ...publicJwk,
+          kid: "test-key-id",
+          alg: "RS256",
+          use: "sig",
+        },
+      ],
+    };
+  }
+  if (!cachedJwks) {
+    throw new Error("JWKS not initialized");
+  }
+  return { keyPair: cachedKeyPair, jwks: cachedJwks };
+}
+
 // automatically build and tear down our instance
-export async function buildTestServer(setOnRequest: boolean = true) {
+export async function buildTestServer(
+  params: { organizationId?: string; setToken?: boolean } = {
+    organizationId: "testing-org",
+    setToken: true,
+  },
+) {
+  const { jwks } = await getOrCreateKeyPair();
+
   const app = fastify({
     ajv: {
       customOptions: {
@@ -19,39 +52,26 @@ export async function buildTestServer(setOnRequest: boolean = true) {
     },
   });
 
-  // if (setOnRequest) {
-  //   const token = await getValidToken();
-  //   app.checkPermissions = async (req: FastifyRequest, _rep: FastifyReply) => {
-  //     req.userData = {
-  //       userId: token.decoded.aud,
-  //       organizationId: token.decoded.orgId,
-  //       accessToken: token.token,
-  //       isM2MApplication: true,
-  //       signInMethod: "mock",
-  //     };
-  //   };
-  // }
+  // Inject test JWKS before server registration (for api-auth plugin)
+
+  (app as FastifyInstance & { testJwks?: JSONWebKeySet }).testJwks = jwks;
 
   app.register(fp(buildServer));
 
-  if (setOnRequest) {
-    const token = await getValidToken();
-    app.addHook("onRequest", (req: FastifyRequest, _reply, done) => {
-      req.userData = {
-        accessToken: "test-token",
-        organizationId: "org-123",
-        userId: "user-123",
-        isM2MApplication: false,
-      };
+  const token = await getValidToken(params.organizationId);
+
+  // Add hook to inject authorization header
+  app.addHook("onRequest", (req, _reply, done) => {
+    if (params.setToken || params.setToken === undefined) {
       req.headers.authorization = `Bearer ${token.token}`;
-      done();
-    });
-  }
+    }
+    done();
+  });
 
   return app;
 }
 
-async function getValidToken(): Promise<{
+async function getValidToken(organizationId: string | undefined): Promise<{
   token: string;
   decoded: {
     jti: string;
@@ -59,32 +79,45 @@ async function getValidToken(): Promise<{
     scope: string;
     client_id: string;
     aud: string;
-    orgId: string;
+    orgId: string | undefined;
+    iss: string;
   };
 }> {
+  const { keyPair } = await getOrCreateKeyPair();
+
   const toJwtData = {
-    jti: "1234554fdwjkdbjfvdebi",
-    sub: "r58qdwh2da6qtsqb12345",
-    iat: 1763894620,
-    exp: 1763898220,
+    jti: "test-jwt-id-12345",
+    sub: "user-123",
     scope:
       "profile:user.admin:* upload:file:* messaging:message:* messaging:event:read",
-    client_id: "r58qdwh2da6qtsqb12345",
+    client_id: "client-456",
     iss: "http://localhost:3301/oidc",
-    aud: "urn:logto:organization:testing-org",
+    aud: organizationId
+      ? `urn:logto:organization:${organizationId}`
+      : "audience-placeholder",
   };
 
-  const key = createSecretKey("my-secret-key-my-secret-key-1234", "utf-8");
-  const sign = new SignJWT(toJwtData)
-    .setProtectedHeader({ alg: "RSA256" }) // algorithm
+  const token = await new SignJWT({
+    jti: toJwtData.jti,
+    sub: toJwtData.sub,
+    scope: toJwtData.scope,
+    client_id: toJwtData.client_id,
+  })
+    .setProtectedHeader({ alg: "RS256", kid: "test-key-id" })
     .setIssuedAt()
-    .setIssuer(toJwtData.iss) // issuer
-    .setAudience(toJwtData.aud) // audience
-    .setExpirationTime("5 minutes") // token expiration time, e.g., "1 day"
-    .sign(key); // secretKey generated from previous step
+    .setIssuer(toJwtData.iss)
+    .setAudience(toJwtData.aud)
+    .setExpirationTime("1h")
+    .sign(keyPair.privateKey);
 
   return {
-    token: await sign,
-    decoded: { ...toJwtData, orgId: "testing-org" },
+    token,
+    decoded: { ...toJwtData, orgId: organizationId },
   };
+}
+
+// Export the JWKS for mock server setup if needed
+export async function getTestJwks(): Promise<JSONWebKeySet> {
+  const { jwks } = await getOrCreateKeyPair();
+  return jwks;
 }

@@ -78,14 +78,14 @@ describe("GET /v1/messages/:messageId/events integration", () => {
       method: "GET",
       url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
     });
-    console.log({ GIANNI: res.body });
+
     expect(res.statusCode).toBe(404);
     const payload = res.json();
     expect(payload.code).toBe("NOT_FOUND");
   });
 
   it("returns 401 if no token", async () => {
-    const noTokenApp = await buildTestServer();
+    const noTokenApp = await buildTestServer({ setToken: false });
     try {
       const messagingSdkNoToken = {
         getMessageEvents: vi.fn(),
@@ -99,6 +99,7 @@ describe("GET /v1/messages/:messageId/events integration", () => {
         url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
         headers: {},
       });
+
       expect(res.statusCode).toBe(401);
       const payload = res.json();
       expect(payload.code).toBe("UNAUTHORIZED");
@@ -107,17 +108,8 @@ describe("GET /v1/messages/:messageId/events integration", () => {
     }
   });
 
-  it("returns 403 if org missing or forbidden", async () => {
-    const noOrgApp = await buildTestServer();
-    noOrgApp.addHook("onRequest", (req, _reply, done) => {
-      req.userData = {
-        accessToken: "test-token",
-        organizationId: undefined,
-        userId: "user-123",
-        isM2MApplication: false,
-      };
-      done();
-    });
+  it("returns 401 if org missing or forbidden", async () => {
+    const noOrgApp = await buildTestServer({ organizationId: undefined });
     noOrgApp.getMessagingSdk = vi.fn().mockReturnValue(messagingSdk);
     try {
       await noOrgApp.ready();
@@ -128,6 +120,7 @@ describe("GET /v1/messages/:messageId/events integration", () => {
         method: "GET",
         url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
       });
+
       expect(res.statusCode).toBe(403);
       const payload = res.json();
       expect(payload.code).toBe("ORG_MISSING");
