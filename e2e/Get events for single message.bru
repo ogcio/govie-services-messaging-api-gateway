@@ -1,0 +1,20 @@
+meta {
+  name: Get events for single message
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{apiGatewayUrl}}/api/v1/messages/{{messageId}}/events
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
