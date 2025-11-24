@@ -2,6 +2,7 @@ import type { MultipartFile } from "@fastify/multipart";
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import createError from "http-errors";
 import { sendMessage } from "../../../../services/message-orchestration.js";
+import { requireAuthToken } from "../../../../utils/auth-helpers.js";
 import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
@@ -30,20 +31,23 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
     "/",
     {
       schema: sendMessageRouteSchema,
+      preValidation: (req, res) =>
+        fastify.gatewayCheckPermissions(req, res, []),
     },
     async (
       request: FastifyRequestTypebox<typeof sendMessageRouteSchema>,
       reply: FastifyReplyTypebox<typeof sendMessageRouteSchema>,
     ) => {
-      const { body, userData } = request;
-      if (!userData || !userData.accessToken) {
-        throw createError.Unauthorized("Missing access token");
+      const { body } = request;
+      const accessToken = requireAuthToken(request, reply);
+      if (!request.userData || !accessToken) {
+        return;
       }
 
       // Acquire downstream SDK clients via token
-      const profileSdk = fastify.getProfileSdk(userData.accessToken);
-      const uploadSdk = fastify.getUploadSdk(userData.accessToken);
-      const messagingSdk = fastify.getMessagingSdk(userData.accessToken);
+      const profileSdk = fastify.getProfileSdk(accessToken);
+      const uploadSdk = fastify.getUploadSdk(accessToken);
+      const messagingSdk = fastify.getMessagingSdk(accessToken);
 
       // Collect file parts (streamed via onFile, attached to request)
       const attachments: MultipartFile[] = [];
@@ -74,7 +78,7 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
             profileSdk,
             uploadSdk,
             messagingSdk,
-            userData,
+            userData: request.userData,
             logger: request.log,
           },
           input,

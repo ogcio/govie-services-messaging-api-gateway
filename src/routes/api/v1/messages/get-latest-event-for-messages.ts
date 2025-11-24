@@ -24,10 +24,16 @@ import { getMessageEventsRouteSchema } from "./schema.js";
  * Errors: 401 auth_missing, 403 org_missing, 500 internal_error
  */
 
-const getMessageEventsRoute: FastifyPluginAsyncTypebox = async (fastify) => {
+const getLatestEventForMessages: FastifyPluginAsyncTypebox = async (
+  fastify,
+) => {
   fastify.get(
     "/events",
-    { schema: getMessageEventsRouteSchema },
+    {
+      schema: getMessageEventsRouteSchema,
+      preValidation: (req, res) =>
+        fastify.gatewayCheckPermissions(req, res, []),
+    },
     async (
       request: FastifyRequestTypebox<typeof getMessageEventsRouteSchema>,
       reply: FastifyReplyTypebox<typeof getMessageEventsRouteSchema>,
@@ -54,4 +60,4 @@ const getMessageEventsRoute: FastifyPluginAsyncTypebox = async (fastify) => {
   );
 };
 
-export default getMessageEventsRoute;
+export default getLatestEventForMessages;

@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildTestServer } from "../../build-test-server.js";
 
@@ -55,16 +55,6 @@ describe("GET /v1/messages/events integration", () => {
 
   beforeAll(async () => {
     app = await buildTestServer();
-
-    app.addHook("onRequest", (req: FastifyRequest, _reply, done) => {
-      (req as unknown as { userData: unknown }).userData = {
-        accessToken: "test-token",
-        organizationId: "org-123",
-        userId: "user-123",
-        isM2MApplication: false,
-      };
-      done();
-    });
 
     messagingSdk = {
       getMessageEvents: vi.fn().mockResolvedValue({

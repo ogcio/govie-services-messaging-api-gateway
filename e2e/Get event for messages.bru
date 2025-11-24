@@ -1,0 +1,25 @@
+meta {
+  name: Get event for messages
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{apiGatewayUrl}}/api/v1/messages/events?limit=1&offset=0
+  body: none
+  auth: bearer
+}
+
+params:query {
+  limit: 1
+  offset: 0
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

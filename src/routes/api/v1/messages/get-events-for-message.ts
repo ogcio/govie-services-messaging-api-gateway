@@ -25,10 +25,14 @@ import { getMessageHistoryRouteSchema } from "./schema.js";
  * Note: Uses same SDK method as get-message-events, but with messageId filter
  */
 
-const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
+const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
   fastify.get(
     "/:messageId/events",
-    { schema: getMessageHistoryRouteSchema },
+    {
+      schema: getMessageHistoryRouteSchema,
+      preValidation: (req, res) =>
+        fastify.gatewayCheckPermissions(req, res, []),
+    },
     async (
       request: FastifyRequestTypebox<typeof getMessageHistoryRouteSchema>,
       reply: FastifyReplyTypebox<typeof getMessageHistoryRouteSchema>,
@@ -86,4 +90,4 @@ const getMessageHistoryRoute: FastifyPluginAsyncTypebox = async (fastify) => {
   );
 };
 
-export default getMessageHistoryRoute;
+export default getEventsForMessage;

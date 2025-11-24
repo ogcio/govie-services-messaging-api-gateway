@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildTestServer } from "../../build-test-server.js";
 
@@ -23,17 +23,6 @@ describe("POST /v1/messages integration", () => {
 
   beforeAll(async () => {
     app = await buildTestServer();
-
-    // Inject auth userData for every request
-    app.addHook("onRequest", (req: FastifyRequest, _reply, done) => {
-      (req as unknown as { userData: unknown }).userData = {
-        accessToken: "test-token",
-        organizationId: "org-123",
-        userId: "user-123",
-        isM2MApplication: false,
-      };
-      done();
-    });
 
     // Override SDK factories with test doubles
     interface ProfileStub {
@@ -131,23 +120,27 @@ describe("POST /v1/messages integration", () => {
   // Removed upload/share failure multipart tests pending streaming implementation
 
   // T057: Future scheduledAt accepted and passed through
-  it("accepts future scheduledAt and passes timestamp to messaging service", async () => {
-    messagingSendSpy.mockClear();
-    const futureDate = new Date(Date.now() + 60 * 60 * 1000); // 1 hour future
-    const futureBody = {
-      ...baseBody,
-      scheduledAt: futureDate.toISOString(),
-    };
-    const res = await app.inject({
-      method: "POST",
-      url: "/api/v1/messages",
-      payload: futureBody,
-    });
-    expect(res.statusCode).toBe(201);
-    expect(messagingSendSpy).toHaveBeenCalledTimes(1);
-    const callArg = messagingSendSpy.mock.calls[0][0];
-    expect(callArg.scheduleAt).toBe(futureBody.scheduledAt);
-  });
+  it(
+    "accepts future scheduledAt and passes timestamp to messaging service",
+    { only: true },
+    async () => {
+      messagingSendSpy.mockClear();
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000); // 1 hour future
+      const futureBody = {
+        ...baseBody,
+        scheduledAt: futureDate.toISOString(),
+      };
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/messages",
+        payload: futureBody,
+      });
+      expect(res.statusCode).toBe(201);
+      expect(messagingSendSpy).toHaveBeenCalledTimes(1);
+      const callArg = messagingSendSpy.mock.calls[0][0];
+      expect(callArg.scheduleAt).toBe(futureBody.scheduledAt);
+    },
+  );
 
   // Scheduling behavior test deferred until semantics finalized
   it.skip("dispatches immediately when scheduledAt is in the past", async () => {
