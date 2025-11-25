@@ -33,27 +33,13 @@ export const SendMessageRequestSchema = Type.Object({
   subject: Type.String({ minLength: 1, maxLength: 500 }),
   plainTextBody: Type.String({ minLength: 1 }),
   htmlBody: Type.Optional(Type.String()),
-  securityLevel: Type.Union([
-    Type.Literal("confidential"),
-    Type.Literal("public"),
-  ]),
-  language: Type.Union([Type.Literal("en"), Type.Literal("ga")]),
+  securityLevel: Type.Enum(["public", "confidential"]),
+  language: Type.Enum(["en", "ga"]),
   scheduledAt: Type.String({
     format: "date-time",
     description: "ISO 8601 timestamp (Europe/Dublin TZ assumed)",
   }),
   recipient: RecipientUnionSchema,
-  // Attachments streamed via multipart; optional count hint for validation (not required)
-  attachmentsMeta: Type.Optional(
-    Type.Array(
-      Type.Object({
-        filename: Type.String(),
-        mimeType: Type.String(),
-        sizeBytes: Type.Number({ minimum: 1 }),
-      }),
-      { maxItems: 10 },
-    ),
-  ),
   attachments: Type.Optional(Type.Unknown()), // Placeholder for multipart files
 });
 

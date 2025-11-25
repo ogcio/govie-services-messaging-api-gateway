@@ -66,7 +66,7 @@ const GetLatestEventBodySchema = Type.Object({
   dateFrom: Type.Optional(Type.String({ format: "date-time" })),
   dateTo: Type.Optional(Type.String({ format: "date-time" })),
   status: Type.Optional(
-    Type.Enum(MessageStatus, {
+    Type.Enum(Object.values(MessageStatus), {
       description: "Filter events by status",
     }),
   ),
@@ -76,7 +76,7 @@ export const getLatestEventForMessagesRouteSchema = {
   tags: ["messages"],
   querystring: PaginationParamsSchema,
   description:
-    "Query message events with pagination, filters, and HATEOAS links",
+    "Get latest event for a list of messages with pagination, filters, and HATEOAS links",
   body: Type.Optional(GetLatestEventBodySchema),
   response: {
     200: getGenericResponseSchema(Type.Array(MessageEventSchema)),

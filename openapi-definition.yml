@@ -330,7 +330,8 @@ paths:
     post:
       tags:
         - messages
-      description: Query message events with pagination, filters, and HATEOAS links
+      description: Get latest event for a list of messages with pagination, filters,
+        and HATEOAS links
       requestBody:
         content:
           application/json:
@@ -638,21 +639,13 @@ paths:
                 htmlBody:
                   type: string
                 securityLevel:
-                  anyOf:
-                    - type: string
-                      enum:
-                        - confidential
-                    - type: string
-                      enum:
-                        - public
+                  enum:
+                    - public
+                    - confidential
                 language:
-                  anyOf:
-                    - type: string
-                      enum:
-                        - en
-                    - type: string
-                      enum:
-                        - ga
+                  enum:
+                    - en
+                    - ga
                 scheduledAt:
                   type: string
                   format: date-time
@@ -700,23 +693,6 @@ paths:
                         dateOfBirth:
                           type: string
                           format: date
-                attachmentsMeta:
-                  type: array
-                  items:
-                    type: object
-                    required:
-                      - filename
-                      - mimeType
-                      - sizeBytes
-                    properties:
-                      filename:
-                        type: string
-                      mimeType:
-                        type: string
-                      sizeBytes:
-                        type: number
-                        minimum: 1
-                  maxItems: 10
                 attachments: {}
         required: true
       responses:

@@ -83,7 +83,6 @@ describe("Message Routes - Contract Tests (Phase 2)", () => {
 
     // Verify optional fields present
     expect(bodySchema.properties).toHaveProperty("htmlBody");
-    expect(bodySchema.properties).toHaveProperty("attachmentsMeta");
 
     // Verify recipient union schema
     const recipientSchema = bodySchema.properties.recipient;
