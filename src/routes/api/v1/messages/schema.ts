@@ -31,26 +31,41 @@ export const sendMessageRouteSchema = {
 };
 
 // GET /v1/messages/events
-const MessageEventSchema = Type.Object({
-  id: Type.String({
-    format: "uuid",
-    description: "Unique id of the event",
-  }),
-  messageId: Type.String({
-    format: "uuid",
-    description: "Unique id of the related message",
-  }),
-  subject: Type.String({ description: "Subject of the related message" }),
-  receiverFullName: Type.String({
-    description: "Full name of the recipient",
-  }),
-  eventType: Type.String({ description: "Event type description" }),
-  eventStatus: Type.String({ description: "Status for event type" }),
-  scheduledAt: Type.String({
-    description:
-      "Date and time which describes when the message has to be sent",
-  }),
-});
+const MessageEventSchema = Type.Object(
+  {
+    id: Type.String({
+      format: "uuid",
+      description: "Unique id of the event",
+    }),
+    messageId: Type.String({
+      format: "uuid",
+      description: "Unique id of the related message",
+    }),
+    subject: Type.String({ description: "Subject of the related message" }),
+    receiverFullName: Type.String({
+      description: "Full name of the recipient",
+    }),
+    eventType: Type.String({ description: "Event type description" }),
+    eventStatus: Type.String({ description: "Status for event type" }),
+    scheduledAt: Type.String({
+      description:
+        "Date and time which describes when the message has to be sent",
+    }),
+  },
+  {
+    examples: [
+      {
+        id: "e1f2g3h4-i5j6-7890-abcd-ef1234567890",
+        messageId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        subject: "Welcome to MessagingIE",
+        receiverFullName: "John Doe",
+        eventType: "delivered",
+        eventStatus: "success",
+        scheduledAt: "2025-11-25T14:30:00Z",
+      },
+    ],
+  },
+);
 
 const MessageStatus = {
   Delivered: "delivered",
@@ -59,18 +74,31 @@ const MessageStatus = {
   Failed: "failed",
 };
 
-const GetLatestEventBodySchema = Type.Object({
-  recipientEmail: Type.Optional(Type.String({ format: "email" })),
-  recipientId: Type.Optional(Type.String({ format: "uuid" })),
-  subjectContains: Type.Optional(Type.String()),
-  dateFrom: Type.Optional(Type.String({ format: "date-time" })),
-  dateTo: Type.Optional(Type.String({ format: "date-time" })),
-  status: Type.Optional(
-    Type.Enum(Object.values(MessageStatus), {
-      description: "Filter events by status",
-    }),
-  ),
-});
+const GetLatestEventBodySchema = Type.Object(
+  {
+    recipientEmail: Type.Optional(Type.String({ format: "email" })),
+    recipientId: Type.Optional(Type.String({ format: "uuid" })),
+    subjectContains: Type.Optional(Type.String()),
+    dateFrom: Type.Optional(Type.String({ format: "date-time" })),
+    dateTo: Type.Optional(Type.String({ format: "date-time" })),
+    status: Type.Optional(
+      Type.Enum(Object.values(MessageStatus), {
+        description: "Filter events by status",
+      }),
+    ),
+  },
+  {
+    examples: [
+      {
+        recipientEmail: "john.doe@example.com",
+        subjectContains: "Welcome",
+        dateFrom: "2025-11-01T00:00:00Z",
+        dateTo: "2025-11-30T23:59:59Z",
+        status: "delivered",
+      },
+    ],
+  },
+);
 
 export const getLatestEventForMessagesRouteSchema = {
   tags: ["messages"],

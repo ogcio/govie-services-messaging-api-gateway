@@ -96,6 +96,14 @@ paths:
                         scheduledAt:
                           type: string
                           description: Date and time which describes when the message has to be sent
+                      example:
+                        id: e1f2g3h4-i5j6-7890-abcd-ef1234567890
+                        messageId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                        subject: Welcome to MessagingIE
+                        receiverFullName: John Doe
+                        eventType: delivered
+                        eventStatus: success
+                        scheduledAt: 2025-11-25T14:30:00Z
                   metadata:
                     type: object
                     properties:
@@ -113,6 +121,9 @@ paths:
                               href:
                                 type: string
                                 description: URL pointing to the request itself
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=20&limit=20
                           next:
                             type: object
                             properties:
@@ -121,6 +132,9 @@ paths:
                                 description: URL pointing to the next page of results in a paginated response.
                                   If there are no more results, this field may
                                   be omitted
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=40&limit=20
                           prev:
                             type: object
                             properties:
@@ -129,18 +143,27 @@ paths:
                                 description: URL pointing to the previous page of results in a paginated
                                   response. If there are no more results, this
                                   field may be omitted
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
                           first:
                             type: object
                             properties:
                               href:
                                 type: string
                                 description: URL pointing to the first page of results in a paginated response
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
                           last:
                             type: object
                             properties:
                               href:
                                 type: string
                                 description: URL pointing to the first page of results in a paginated response
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=120&limit=20
                           pages:
                             type: object
                             description: It may contain a list of other useful URLs, e.g. one entry for
@@ -150,10 +173,19 @@ paths:
                               properties:
                                 href:
                                   type: string
+                              description: Object containing the URL link
+                              examples:
+                                - href: https://api.example.ie/api/v1/messages?offset=0&limit=20
+                            example:
+                              page1:
+                                href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
+                              page2:
+                                href: https://api.example.ie/api/v1/the-endpoint?offset=20&limit=20
                         description: Object containing the links to the related endpoints
                       totalCount:
                         type: number
                         description: Number representing the total number of available items
+                        example: 150
         "401":
           description: Default Response
           content:
@@ -359,6 +391,12 @@ paths:
                     - opened
                     - failed
                   description: Filter events by status
+            example:
+              recipientEmail: john.doe@example.com
+              subjectContains: Welcome
+              dateFrom: 2025-11-01T00:00:00Z
+              dateTo: 2025-11-30T23:59:59Z
+              status: delivered
       parameters:
         - schema:
             type: string
@@ -424,6 +462,14 @@ paths:
                         scheduledAt:
                           type: string
                           description: Date and time which describes when the message has to be sent
+                      example:
+                        id: e1f2g3h4-i5j6-7890-abcd-ef1234567890
+                        messageId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                        subject: Welcome to MessagingIE
+                        receiverFullName: John Doe
+                        eventType: delivered
+                        eventStatus: success
+                        scheduledAt: 2025-11-25T14:30:00Z
                   metadata:
                     type: object
                     properties:
@@ -441,6 +487,9 @@ paths:
                               href:
                                 type: string
                                 description: URL pointing to the request itself
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=20&limit=20
                           next:
                             type: object
                             properties:
@@ -449,6 +498,9 @@ paths:
                                 description: URL pointing to the next page of results in a paginated response.
                                   If there are no more results, this field may
                                   be omitted
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=40&limit=20
                           prev:
                             type: object
                             properties:
@@ -457,18 +509,27 @@ paths:
                                 description: URL pointing to the previous page of results in a paginated
                                   response. If there are no more results, this
                                   field may be omitted
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
                           first:
                             type: object
                             properties:
                               href:
                                 type: string
                                 description: URL pointing to the first page of results in a paginated response
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
                           last:
                             type: object
                             properties:
                               href:
                                 type: string
                                 description: URL pointing to the first page of results in a paginated response
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=120&limit=20
                           pages:
                             type: object
                             description: It may contain a list of other useful URLs, e.g. one entry for
@@ -478,10 +539,19 @@ paths:
                               properties:
                                 href:
                                   type: string
+                              description: Object containing the URL link
+                              examples:
+                                - href: https://api.example.ie/api/v1/messages?offset=0&limit=20
+                            example:
+                              page1:
+                                href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
+                              page2:
+                                href: https://api.example.ie/api/v1/the-endpoint?offset=20&limit=20
                         description: Object containing the links to the related endpoints
                       totalCount:
                         type: number
                         description: Number representing the total number of available items
+                        example: 150
         "401":
           description: Default Response
           content:
@@ -633,23 +703,36 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 500
+                  description: Message subject line (1-500 characters)
+                  example: Welcome to MessagingIE
                 plainTextBody:
                   type: string
                   minLength: 1
+                  description: Plain text version of the message body
+                  example: Dear John Doe, Welcome to MessagingIE.
                 htmlBody:
                   type: string
+                  description: HTML version of the message body (optional)
+                  example: <p>Dear <strong>John Doe</strong>,</p><p>Welcome to MessagingIE.</p>
                 securityLevel:
                   enum:
                     - public
                     - confidential
+                  description: "Security classification of the message: 'public' to show the
+                    original message in the sent email, 'confidential' to show
+                    the content only after login in MessagingIE"
+                  example: confidential
                 language:
                   enum:
                     - en
                     - ga
+                  description: "Message language: 'en' for English, 'ga' for Irish (Gaeilge)"
+                  example: en
                 scheduledAt:
                   type: string
                   format: date-time
                   description: ISO 8601 timestamp (Europe/Dublin TZ assumed)
+                  example: 2025-11-25T14:30:00Z
                 recipient:
                   anyOf:
                     - type: object
@@ -661,22 +744,41 @@ paths:
                       properties:
                         type:
                           type: string
+                          description: Recipient type identifier for email-based recipients
+                          examples:
+                            - email
                           enum:
                             - email
                         firstName:
                           type: string
                           minLength: 1
+                          description: Recipient's first name
+                          examples:
+                            - John
                         lastName:
                           type: string
                           minLength: 1
+                          description: Recipient's last name
+                          examples:
+                            - Doe
                         email:
                           type: string
                           format: email
+                          description: Recipient's email address
+                          examples:
+                            - john.doe@example.ie
                         ppsn:
                           type: string
+                          description: Personal Public Service Number (optional for email recipients)
+                          examples:
+                            - 1234567T
                         dateOfBirth:
                           type: string
                           format: date
+                          description: Recipient's date of birth in YYYY-MM-DD format (optional for email
+                            recipients)
+                          examples:
+                            - 1985-03-15
                     - type: object
                       required:
                         - type
@@ -685,14 +787,24 @@ paths:
                       properties:
                         type:
                           type: string
+                          description: Recipient type identifier for identity-based recipients
+                          examples:
+                            - identity
                           enum:
                             - identity
                         ppsn:
                           type: string
                           minLength: 5
+                          description: Personal Public Service Number (required for identity recipients)
+                          examples:
+                            - 1234567T
                         dateOfBirth:
                           type: string
                           format: date
+                          description: Recipient's date of birth in YYYY-MM-DD format (required for
+                            identity recipients)
+                          examples:
+                            - 1985-03-15
                 attachments: {}
         required: true
       responses:
@@ -716,18 +828,30 @@ paths:
                       messageId:
                         type: string
                         format: uuid
+                        description: Unique identifier for the created message
+                        example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
                       recipientId:
                         type: string
                         format: uuid
+                        description: Unique identifier for the message recipient profile
+                        example: b2c3d4e5-f6a7-8901-bcde-f12345678901
                       attachmentIds:
                         type: array
                         items:
                           type: string
                           format: uuid
+                          description: Unique identifier for an uploaded attachment
+                          example: c3d4e5f6-a7b8-9012-cdef-123456789012
+                        description: List of attachment identifiers associated with the message
+                        example:
+                          - c3d4e5f6-a7b8-9012-cdef-123456789012
+                          - d4e5f6a7-b8c9-0123-def1-234567890123
                       status:
                         type: string
+                        description: Message creation status
                         enum:
                           - created
+                        example: created
                   metadata:
                     type: object
                     properties:
@@ -745,6 +869,9 @@ paths:
                               href:
                                 type: string
                                 description: URL pointing to the request itself
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=20&limit=20
                           next:
                             type: object
                             properties:
@@ -753,6 +880,9 @@ paths:
                                 description: URL pointing to the next page of results in a paginated response.
                                   If there are no more results, this field may
                                   be omitted
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=40&limit=20
                           prev:
                             type: object
                             properties:
@@ -761,18 +891,27 @@ paths:
                                 description: URL pointing to the previous page of results in a paginated
                                   response. If there are no more results, this
                                   field may be omitted
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
                           first:
                             type: object
                             properties:
                               href:
                                 type: string
                                 description: URL pointing to the first page of results in a paginated response
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
                           last:
                             type: object
                             properties:
                               href:
                                 type: string
                                 description: URL pointing to the first page of results in a paginated response
+                            description: Object containing the URL link
+                            example:
+                              href: https://api.example.ie/api/v1/the-endpoint?offset=120&limit=20
                           pages:
                             type: object
                             description: It may contain a list of other useful URLs, e.g. one entry for
@@ -782,10 +921,19 @@ paths:
                               properties:
                                 href:
                                   type: string
+                              description: Object containing the URL link
+                              examples:
+                                - href: https://api.example.ie/api/v1/messages?offset=0&limit=20
+                            example:
+                              page1:
+                                href: https://api.example.ie/api/v1/the-endpoint?offset=0&limit=20
+                              page2:
+                                href: https://api.example.ie/api/v1/the-endpoint?offset=20&limit=20
                         description: Object containing the links to the related endpoints
                       totalCount:
                         type: number
                         description: Number representing the total number of available items
+                        example: 150
         "400":
           description: Default Response
           content:
@@ -1221,5 +1369,3 @@ security:
 tags:
   - name: messages
     description: Message dispatch and history operations
-  - name: healthcheck
-    description: Service health status
