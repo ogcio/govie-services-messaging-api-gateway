@@ -54,7 +54,6 @@ export interface ExtractedUserData {
  */
 export async function lookupRecipient(
   profileSdk: Profile,
-  organizationId: string,
   recipient: RecipientInput,
 ): Promise<RecipientLookupResult> {
   if (recipient.type === "identity") {

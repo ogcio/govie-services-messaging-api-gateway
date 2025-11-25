@@ -74,11 +74,7 @@ export async function sendMessage(
           "messaging.attachment_count": messageData.attachments?.length || 0,
         });
 
-        const result = await lookupRecipient(
-          profileSdk,
-          organizationId,
-          messageData.recipient,
-        );
+        const result = await lookupRecipient(profileSdk, messageData.recipient);
 
         const phase1Duration = Date.now() - phase1Start;
         logger.info(
