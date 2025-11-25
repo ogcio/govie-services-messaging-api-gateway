@@ -43,20 +43,24 @@ const getLatestEventForMessages: FastifyPluginAsyncTypebox = async (
       const token = requireAuthToken(request, reply);
       if (!token) return;
 
-      const messagingSdk = fastify.getMessagingSdk(token);
-
       const filters: MessageEventsQuery = {
         ...sanitizePagination(request.query),
         ...(request.body ?? {}),
       };
 
-      const page = await queryMessageEvents(messagingSdk, request.log, filters);
+      const page = await queryMessageEvents(
+        fastify.getMessagingSdk(token),
+        request.log,
+        filters,
+      );
+
       const response = formatAPIResponse({
         data: page.data,
         totalCount: page.totalCount,
         request,
         config: fastify.config,
       });
+
       reply.status(200).send(response);
     },
   );

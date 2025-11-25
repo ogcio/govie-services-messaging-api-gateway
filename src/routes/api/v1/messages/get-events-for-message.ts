@@ -47,14 +47,16 @@ const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
       const token = requireAuthToken(request, reply);
       if (!token) return;
 
-      const messagingSdk = fastify.getMessagingSdk(token);
-
       try {
-        const result = await queryMessageEvents(messagingSdk, request.log, {
-          messageId,
-          limit: sanitized.limit,
-          offset: sanitized.offset,
-        });
+        const result = await queryMessageEvents(
+          fastify.getMessagingSdk(token),
+          request.log,
+          {
+            messageId,
+            limit: sanitized.limit,
+            offset: sanitized.offset,
+          },
+        );
         // If no events found, return 404
         if (!result.data || result.data.length === 0) {
           sendNotFound(
@@ -64,6 +66,7 @@ const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
           );
           return;
         }
+
         const response = formatAPIResponse({
           data: result.data,
           totalCount: result.totalCount,
