@@ -135,6 +135,7 @@ describe("POST /v1/messages integration", () => {
         url: "/api/v1/messages",
         payload: futureBody,
       });
+
       expect(res.statusCode).toBe(201);
       expect(messagingSendSpy).toHaveBeenCalledTimes(1);
       const callArg = messagingSendSpy.mock.calls[0][0];

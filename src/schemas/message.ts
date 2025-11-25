@@ -54,6 +54,7 @@ export const SendMessageRequestSchema = Type.Object({
       { maxItems: 10 },
     ),
   ),
+  attachments: Type.Optional(Type.Unknown()), // Placeholder for multipart files
 });
 
 export type SendMessageRequest = Static<typeof SendMessageRequestSchema>;

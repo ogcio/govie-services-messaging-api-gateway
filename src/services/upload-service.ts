@@ -47,15 +47,15 @@ export async function uploadFile(
   return executeWithRetry(
     async () => {
       const buffer = await file.toBuffer();
-      const arrayBuffer = buffer.buffer.slice(
-        buffer.byteOffset,
-        buffer.byteOffset + buffer.byteLength,
-      ) as ArrayBuffer;
-      const fileObj = new File([arrayBuffer], file.filename, {
-        type: file.mimetype,
+      const uint8Array = new Uint8Array(buffer);
+      const fileName = file.filename;
+      const contentType = file.mimetype;
+      const fileObj = new File([uint8Array], fileName, {
+        type: contentType,
       });
 
       const res = await uploadSdk.uploadFile(fileObj);
+
       if (res.error) {
         const status = (res.error as { statusCode?: number }).statusCode;
         const detail = res.error.detail || "Failed to upload file";

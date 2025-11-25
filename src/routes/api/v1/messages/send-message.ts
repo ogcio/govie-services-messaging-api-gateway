@@ -34,13 +34,27 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       preValidation: async (request, res) => {
         await fastify.gatewayCheckPermissions(request, res, []);
         if (request.isMultipart() && request.body) {
-          // Parse recipient JSON string when sent via multipart/form-data
-          const body = request.body as Record<string, unknown>;
-          if (typeof body.recipient === "string") {
-            try {
-              body.recipient = JSON.parse(body.recipient);
-            } catch {
-              throw createError.BadRequest("Invalid recipient JSON format");
+          // With attachFieldsToBody: true, fields have .value property
+          const body = request.body as unknown as Record<
+            string,
+            { value: unknown }
+          >;
+
+          // Extract values from wrapped fields
+          for (const key in body) {
+            const field = body[key];
+            if (field && typeof field === "object" && "value" in field) {
+              // Parse recipient JSON if it's a string
+              if (key === "recipient" && typeof field.value === "string") {
+                try {
+                  body[key] = JSON.parse(field.value) as typeof field;
+                } catch {
+                  throw createError.BadRequest("Invalid recipient JSON format");
+                }
+              } else {
+                // Extract the value for other fields
+                body[key] = field.value as typeof field;
+              }
             }
           }
         }
@@ -61,13 +75,17 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       const uploadSdk = fastify.getUploadSdk(accessToken);
       const messagingSdk = fastify.getMessagingSdk(accessToken);
 
-      // Collect file parts (streamed via onFile, attached to request)
+      // Collect file parts (with attachFieldsToBody: true, files are MultipartFile objects)
       const attachments: MultipartFile[] = [];
-      if (request.isMultipart()) {
-        const parts = request.parts();
-        for await (const part of parts) {
-          if (part.type === "file") {
-            attachments.push(part);
+      if (request.isMultipart() && request.body.attachments) {
+        const parts = Array.isArray(request.body.attachments)
+          ? request.body.attachments
+          : [request.body.attachments];
+
+        for (const part of parts) {
+          if (part && typeof part === "object" && "file" in part) {
+            // part is a MultipartFile with properties: filename, mimetype, encoding, file, toBuffer()
+            attachments.push(part as MultipartFile);
           }
         }
       }

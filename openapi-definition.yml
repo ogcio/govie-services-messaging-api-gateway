@@ -619,6 +619,7 @@ paths:
                 - language
                 - scheduledAt
                 - recipient
+                - attachments
               properties:
                 subject:
                   type: string
@@ -709,6 +710,7 @@ paths:
                         type: number
                         minimum: 1
                   maxItems: 10
+                attachments: {}
         required: true
       responses:
         "201":

@@ -1,4 +1,5 @@
 import { writeFile } from "node:fs/promises";
+import { ajvFilePlugin } from "@fastify/multipart";
 import type { TypeBoxTypeProvider } from "@fastify/type-provider-typebox";
 import { getLoggingConfiguration } from "@ogcio/fastify-logging-wrapper";
 import closeWithGrace from "close-with-grace";
@@ -15,11 +16,12 @@ const writeOpenApiDefinition = async (app: FastifyInstance) => {
 };
 
 export async function initializeServer() {
-  const server = fastify(
-    getLoggingConfiguration({
+  const server = fastify({
+    ...getLoggingConfiguration({
       additionalLoggerConfigs: { level: process.env.LOG_LEVEL ?? "debug" },
     }),
-  ).withTypeProvider<TypeBoxTypeProvider>();
+    ajv: { plugins: [ajvFilePlugin] },
+  }).withTypeProvider<TypeBoxTypeProvider>();
   server.register(fp(buildServer));
   await server.ready();
   server.swagger();
