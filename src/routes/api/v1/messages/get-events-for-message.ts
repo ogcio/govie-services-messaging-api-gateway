@@ -6,7 +6,10 @@ import {
   sendForbidden,
   sendNotFound,
 } from "../../../../utils/error-responses.js";
-import { sanitizePagination } from "../../../../utils/pagination.js";
+import {
+  formatAPIResponse,
+  sanitizePagination,
+} from "../../../../utils/pagination.js";
 import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
@@ -61,22 +64,14 @@ const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
           );
           return;
         }
+        const response = formatAPIResponse({
+          data: result.data,
+          totalCount: result.totalCount,
+          request,
+          config: fastify.config,
+        });
 
-        // Assemble response to match schema
-        const response = {
-          data: {
-            messageId: result.data[0].messageId,
-            subject: result.data[0].subject || "",
-            events: result.data.map((ev) => ({
-              eventType: ev.eventType,
-              timestamp: ev.scheduledAt,
-            })),
-          },
-          metadata: {
-            totalCount: result.totalCount,
-          },
-        };
-        reply.status(200).send(response as never);
+        reply.status(200).send(response);
       } catch (err: unknown) {
         // Map org/authorization errors to 403
         if (isForbiddenError(err)) {

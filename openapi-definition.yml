@@ -61,33 +61,41 @@ paths:
                   - data
                 properties:
                   data:
-                    type: object
-                    required:
-                      - messageId
-                      - subject
-                      - events
-                    properties:
-                      messageId:
-                        type: string
-                        format: uuid
-                      subject:
-                        type: string
-                      events:
-                        type: array
-                        items:
-                          type: object
-                          required:
-                            - eventType
-                            - timestamp
-                          properties:
-                            eventType:
-                              type: string
-                            timestamp:
-                              type: string
-                              format: date-time
-                            details:
-                              type: object
-                              additionalProperties: {}
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - messageId
+                        - subject
+                        - receiverFullName
+                        - eventType
+                        - eventStatus
+                        - scheduledAt
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          description: Unique id of the event
+                        messageId:
+                          type: string
+                          format: uuid
+                          description: Unique id of the related message
+                        subject:
+                          type: string
+                          description: Subject of the related message
+                        receiverFullName:
+                          type: string
+                          description: Full name of the recipient
+                        eventType:
+                          type: string
+                          description: Event type description
+                        eventStatus:
+                          type: string
+                          description: Status for event type
+                        scheduledAt:
+                          type: string
+                          description: Date and time which describes when the message has to be sent
                   metadata:
                     type: object
                     properties:
@@ -619,7 +627,6 @@ paths:
                 - language
                 - scheduledAt
                 - recipient
-                - attachments
               properties:
                 subject:
                   type: string

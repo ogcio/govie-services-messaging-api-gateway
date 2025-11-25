@@ -78,10 +78,10 @@ describe("GET /v1/messages/:messageId/events integration", () => {
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
-    expect(payload.data.messageId).toBe(messageId);
-    expect(payload.data.events.length).toBe(2);
-    expect(payload.data.events[0].eventType).toBe("email_sent");
-    expect(payload.data.events[1].eventType).toBe("email_delivered");
+    expect(Array.isArray(payload.data)).toBe(true);
+    expect(payload.data.length).toBe(2);
+    expect(payload.data[0].eventType).toBe("email_sent");
+    expect(payload.data[1].eventType).toBe("email_delivered");
     expect(payload.metadata.totalCount).toBe(2);
   });
 

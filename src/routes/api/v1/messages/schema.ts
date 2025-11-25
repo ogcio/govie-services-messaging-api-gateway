@@ -87,17 +87,6 @@ export const getLatestEventForMessagesRouteSchema = {
 };
 
 // GET /v1/messages/:messageId/events
-const MessageHistorySchema = Type.Object({
-  messageId: Type.String({ format: "uuid" }),
-  subject: Type.String(),
-  events: Type.Array(
-    Type.Object({
-      eventType: Type.String(),
-      timestamp: Type.String({ format: "date-time" }),
-      details: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-    }),
-  ),
-});
 
 export const getMessageHistoryRouteSchema = {
   tags: ["messages"],
@@ -107,7 +96,7 @@ export const getMessageHistoryRouteSchema = {
     messageId: Type.String({ format: "uuid" }),
   }),
   response: {
-    200: getGenericResponseSchema(MessageHistorySchema),
+    200: getGenericResponseSchema(Type.Array(MessageEventSchema)),
     401: HttpError,
     403: HttpError,
     404: HttpError,
