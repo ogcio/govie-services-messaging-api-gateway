@@ -1,0 +1,14 @@
+variables:
+  awsServiceConnection: aws-sharedservices-building-blocks-azure-devops
+  awsRegion: eu-west-1
+  ecrEndpoint: 428528001781.dkr.ecr.eu-west-1.amazonaws.com
+  environment: LifeEvents-dev
+  services: messaging-api-gateway
+  clusterName: non-prod-02
+
+  ADOBaseUrl: https://dev.azure.com
+  ADOOrg: OGCIO-Digital-Services
+  ADOProject: Digital Services Programme
+  WikiName: Digital-Services-Programme.wiki
+  ADOReleaseNoteTemplatePath: /Release Notes/Life Events/Release template
+  ADOReleaseNotePagePath: /Release Notes/Life Events/Messaging API Gateway

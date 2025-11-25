@@ -1,0 +1,220 @@
+trigger:
+  - dev
+
+pr:
+  autoCancel: true
+  branches:
+    include:
+      - "*"
+
+# Services object is now defined per environment.
+# Check the variables file for the desired environment!
+parameters:
+  - name: buildBranches
+    type: object
+    # default: ["dev", "uat", "prod"]
+    default: ["dev"]
+
+  - name: validEnvironments
+    type: object
+    displayName: List of valid environments to deploy (do not change)
+    # default: ["dev", "uat", "prod"]
+    default: ["dev"]
+
+  - name: vmImage
+    type: string
+    default: "ubuntu-22.04"
+
+variables:
+  - name: pushArtefacts
+    value: ${{ containsValue(parameters.buildBranches, variables['Build.SourceBranchName']) }}
+  - ${{ if containsValue(parameters.validEnvironments ,variables['Build.SourceBranchName']) }}:
+      - template: pipeline-variables/${{ coalesce(variables['Build.SourceBranchName'], 'fallback') }}.yml
+  - ${{ else }}:
+      - template: pipeline-variables/dev.yml
+  - name: runSmokeTest
+    value: ${{ eq('dev', variables['Build.SourceBranchName']) }}
+  - name: generateReleaseNote
+    value: ${{ eq('prod', variables['Build.SourceBranchName']) }}
+  # Dynamic variable group selection based on branch
+  - ${{ if eq(variables['Build.SourceBranchName'], 'dev') }}:
+    - group: messaging-api-gateway-dev
+  - ${{ elseif eq(variables['Build.SourceBranchName'], 'uat') }}:
+    - group: messaging-api-gateway-uat
+  - ${{ elseif eq(variables['Build.SourceBranchName'], 'prod') }}:
+    - group: messaging-api-gateway-prod
+  - ${{ elseif and(ne(variables['Build.SourceBranchName'], 'dev'), ne(variables['Build.SourceBranchName'], 'uat'), ne(variables['Build.SourceBranchName'], 'prod')) }}:
+    - group: messaging-api-gateway-dev
+
+resources:
+  repositories:
+    - repository: pipeline-templates
+      type: github
+      name: ogcio/building-blocks-pipelines
+      ref: refs/tags/v0.5.33
+      endpoint: ogcio
+    - repository: messaging-api-gateway-k8s-apps
+      type: github
+      name: ogcio/messaging-api-gateway-k8s-apps
+      ref: main
+      endpoint: ogcio
+    - repository: messaging-api-gateway-parser-k8s-apps
+      type: github
+      name: ogcio/messaging-api-gateway-parser-k8s-apps
+      ref: main
+      endpoint: ogcio
+
+stages:
+  - stage: setup
+    displayName: Setup Dependencies
+    dependsOn: []
+    jobs:
+      - job: SetupDependencies
+        displayName: Setup pnpm and Install Dependencies
+        pool:
+          vmImage: ${{ parameters.vmImage }}
+        steps:
+          - template: tools/install-pnpm.yml@pipeline-templates
+  - stage: securityScan
+    displayName: Security Scans
+    pool:
+      vmImage: ${{ parameters.vmImage }}
+    jobs:
+      - template: security/gitleaks.yml@pipeline-templates
+      - ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+          - job: bearerScan
+            displayName: Bearer
+            steps:
+              - task: DockerInstaller@0
+                displayName: Docker Installer
+                inputs:
+                  dockerVersion: 17.09.0-ce
+                  releaseType: stable
+              - script: |
+                  docker run --rm -v $(pwd):/tmp/scan bearer/bearer:latest-amd64 scan --no-color --hide-progress-bar --fail-on-severity critical,high /tmp/scan
+                displayName: Code Scan
+  - ${{ each serviceName in split(replace(variables.services, ' ', ''), ',') }}:
+      - stage: Unit_Tests_${{ replace(serviceName, '-', '_') }}
+        displayName: Run unit tests - ${{ serviceName }}
+        pool:
+          vmImage: ${{ parameters.vmImage }}
+        dependsOn:
+          - securityScan
+        jobs:
+          - template: test/pnpm_unit_test.yml@pipeline-templates
+            parameters:
+              serviceName: ${{ serviceName }}
+              testPath: "./apps/"
+      - stage: Build_${{ replace(serviceName, '-', '_') }}
+        displayName: Build ${{ serviceName }}
+        pool:
+          vmImage: ${{ parameters.vmImage }}
+        dependsOn: Unit_Tests_${{ replace(serviceName, '-', '_') }}
+        jobs:
+          - template: build/build_service.yml@pipeline-templates
+            parameters:
+              serviceName: ${{ serviceName }}
+              pushArtefacts: true
+              dockerfile: apps/${{ serviceName }}/Dockerfile
+      - stage: Scan_${{ replace(serviceName, '-', '_') }}
+        displayName: Scan ${{ serviceName }}
+        pool:
+          vmImage: ${{ parameters.vmImage }}
+        dependsOn:
+          - Build_${{ replace(serviceName, '-', '_') }}
+        jobs:
+          - template: security/trivy.yml@pipeline-templates
+            parameters:
+              pullDockerImageFromArtifact: true
+              awsServiceConnection: ${{ variables.awsServiceConnection }}
+              dockerImageName: ${{ serviceName }}
+              dockerImageTag: $(Build.BuildId)
+              trivyIgnoreFilePath: '.trivyignore'
+      - stage: Push_${{ replace(serviceName, '-', '_') }}
+        displayName: Push ${{ serviceName }} to ECR
+        pool:
+          vmImage: ${{ parameters.vmImage }}
+        dependsOn:
+          - Scan_${{ replace(serviceName, '-', '_') }}
+        condition: and(${{ variables.pushArtefacts }}, succeeded())
+        jobs:
+          - template: build/push_image_ecr.yml@pipeline-templates
+            parameters:
+              awsServiceConnection: ${{ variables.awsServiceConnection }}
+              awsRegion: ${{ variables.awsRegion }}
+              serviceName: ${{ serviceName }}
+              repositoryName: bb-${{ serviceName }}
+              pushTag: $(Build.BuildId)
+  - stage: EnvApproval
+    displayName: Approvals for deployments - ${{ upper(variables.environment) }}
+    dependsOn:
+      - ${{ each serviceName in split(replace(variables.services, ' ', ''), ',') }}:
+          - Push_${{ replace(serviceName, '-', '_') }}
+    condition: ${{ variables.pushArtefacts }}
+    jobs:
+      - deployment: VerifyDeployment
+        displayName: Verify conditions for deployment
+        environment: ${{ variables.environment }}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: none
+                - script: |
+                    date
+                  displayName: Show current date
+  - stage: CreateReleaseNote
+    displayName: Create release note in Wiki
+    dependsOn:
+      - EnvApproval
+    condition: and(${{ variables.generateReleaseNote }}, succeeded())
+    jobs:
+      - job: prepareReleaseNoteTitle
+        displayName: "Prepare and Create Release Note"
+        continueOnError: true
+        steps:
+          - bash: |
+              set -e
+              title=$(date +"%d-%m-%Y %H:%M")
+              echo "##vso[task.setvariable variable=ReleaseNoteTitle]$title"
+            name: setTitle
+          - template: tools/generate-release-note.yml@pipeline-templates
+            parameters:
+              buildID: $(Build.BuildId)
+              adoPat: $(ADO_PAT)
+              adoBaseUrl: $(ADOBaseUrl)
+              adoOrg: $(ADOOrg)
+              adoProject: $(ADOProject)
+              adoWikiName: $(WikiName)
+              releaseNoteTemplatePath: $(ADOReleaseNoteTemplatePath)
+              releaseNotePagePath: $(ADOReleaseNotePagePath)
+  - ${{ each serviceName in split(replace(variables.services, ' ', ''), ',') }}:
+      - stage: Deploy_Openshift_${{ replace(serviceName, '-', '_') }}
+        displayName: GitOps deploy ${{ serviceName }}
+        pool:
+          vmImage: ${{ parameters.vmImage }}
+        dependsOn:
+          - EnvApproval
+          - Push_${{ replace(serviceName, '-', '_') }}
+        condition: succeeded()
+        jobs:
+          - template: deploy/gitops.yml@pipeline-templates
+            parameters:
+              serviceName: ${{ serviceName }}
+              clusterName: ${{ variables.clusterName }}
+              newName: ${{ variables.ecrEndpoint }}/bb-${{ serviceName }}
+              newTag: $(Build.BuildId)
+              ${{ if containsValue(parameters.validEnvironments ,variables['Build.SourceBranchName']) }}:
+                environment: ${{ variables['Build.SourceBranchName'] }}
+              ${{ else }}:
+                environment: dev
+      - stage: Smoke_Tests_${{ replace(serviceName, '-', '_') }}
+        displayName: Run smoke tests - ${{ serviceName }}
+        condition: ${{ variables.runSmokeTests }}
+        pool: "Openshift"
+        dependsOn: Deploy_Openshift_${{ replace(serviceName, '-', '_') }}
+        jobs:
+          - template: test/pnpm_smoke_test.yml@pipeline-templates
+            parameters:
+              serviceName: ${{ serviceName }}
+              testPath: "./apps/"

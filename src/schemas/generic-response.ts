@@ -7,6 +7,7 @@ const ResponseMetadataSchema = Type.Optional(
     totalCount: Type.Optional(
       Type.Number({
         description: "Number representing the total number of available items",
+        examples: [150],
       }),
     ),
   }),
