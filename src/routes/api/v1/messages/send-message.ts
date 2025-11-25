@@ -3,7 +3,7 @@ import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import createError from "http-errors";
 import type { TSchema } from "typebox";
 import { sendMessage } from "../../../../services/message-orchestration.js";
-import { requireAuthToken } from "../../../../utils/auth-helpers.js";
+import { requirePublicServant } from "../../../../utils/auth-helpers.js";
 import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
@@ -41,8 +41,9 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       request: FastifyRequestTypebox<typeof sendMessageRouteSchema>,
       reply: FastifyReplyTypebox<typeof sendMessageRouteSchema>,
     ) => {
-      const accessToken = requireAuthToken(request, reply);
-      if (!request.userData || !accessToken) {
+      const { token: accessToken, organizationId } =
+        requirePublicServant(request, reply) || {};
+      if (!accessToken || !organizationId) {
         return;
       }
 
@@ -63,7 +64,7 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
             profileSdk: fastify.getProfileSdk(accessToken),
             uploadSdk: fastify.getUploadSdk(accessToken),
             messagingSdk: fastify.getMessagingSdk(accessToken),
-            userData: request.userData,
+            organizationId,
             logger: request.log,
           },
           input,

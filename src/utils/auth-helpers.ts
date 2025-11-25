@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { sendUnauthorized } from "./error-responses.js";
+import { sendForbidden, sendUnauthorized } from "./error-responses.js";
 
 /**
  * Validates that an auth token exists in request.userData.
@@ -20,4 +20,21 @@ export function requireAuthToken(
     return null;
   }
   return token;
+}
+
+export function requirePublicServant(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): { token: string; organizationId: string } | null {
+  const token = request.userData?.accessToken;
+  if (!token) {
+    sendUnauthorized(reply, request.id);
+    return null;
+  }
+  if (!request.userData?.organizationId) {
+    sendForbidden(reply, request.id);
+    return null;
+  }
+
+  return { token, organizationId: request.userData.organizationId };
 }

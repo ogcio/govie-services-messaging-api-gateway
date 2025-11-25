@@ -57,6 +57,7 @@ const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
             offset: sanitized.offset,
           },
         );
+
         // If no events found, return 404
         if (!result.data || result.data.length === 0) {
           sendNotFound(

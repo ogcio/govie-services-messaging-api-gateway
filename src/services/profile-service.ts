@@ -54,13 +54,9 @@ export interface ExtractedUserData {
  */
 export async function lookupRecipient(
   profileSdk: Profile,
-  userData: ExtractedUserData,
+  organizationId: string,
   recipient: RecipientInput,
 ): Promise<RecipientLookupResult> {
-  if (!userData.organizationId) {
-    throw createError.Unauthorized("No organization ID found in user data");
-  }
-
   if (recipient.type === "identity") {
     // PPSN + DOB lookup via listProfilesPost
     const searchResult = await profileSdk.listProfilesPost({
