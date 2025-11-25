@@ -5,6 +5,10 @@ import type {
   FastifyRequest,
 } from "fastify";
 import fp from "fastify-plugin";
+import {
+  sendForbidden,
+  sendUnauthorized,
+} from "../../utils/error-responses.js";
 
 declare module "fastify" {
   export interface FastifyInstance {
@@ -27,22 +31,22 @@ export default fp((fastify: FastifyInstance, _opts: FastifyPluginAsync) => {
       method: "AND" | "OR" = "AND",
     ): Promise<void> => {
       try {
-        await fastify.checkPermissions(request, reply, permissions, { method });
+        await fastify.checkPermissions(request, reply, permissions, {
+          method,
+        });
 
         if (!request.userData) {
           request.log.error("No user data found after permission check");
-          reply.status(401).send();
-          return;
+          return sendUnauthorized(reply, request.id, "No user data found");
         }
 
         if (!request.userData.organizationId) {
           request.log.error("No organization ID found in user data");
-          reply.status(401).send();
-          return;
+          return sendForbidden(reply, request.id, "No organization ID found");
         }
       } catch (e) {
         request.log.error({ parent: e }, "Unauthorized request");
-        reply.status(401).send();
+        return sendUnauthorized(reply, request.id);
       }
     },
   );

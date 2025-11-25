@@ -2,6 +2,7 @@ import apiAuthPlugin, {
   type CheckPermissionsPluginOpts,
 } from "@ogcio/api-auth";
 import type { FastifyInstance } from "fastify";
+import fp from "fastify-plugin";
 import type { JSONWebKeySet } from "jose";
 
 const JWKS_CACHE_KEY = "logto_jwks_key";
@@ -10,6 +11,10 @@ const JWKS_CACHE_TTL = 60 * 5; // 5 minutes
 export const autoConfig = (
   fastify: FastifyInstance,
 ): CheckPermissionsPluginOpts => {
+  // Check if test JWKS is injected (for testing purposes)
+  const testJwks = (fastify as FastifyInstance & { testJwks?: JSONWebKeySet })
+    .testJwks;
+
   return {
     jwkEndpoint: fastify.config.LOGTO_JWK_ENDPOINT,
     oidcEndpoint: fastify.config.LOGTO_OIDC_ENDPOINT,
@@ -24,6 +29,12 @@ export const autoConfig = (
       return Promise.resolve();
     },
     getLocalJwksFn: (): JSONWebKeySet | undefined => {
+      // First check if test JWKS is injected
+      if (testJwks) {
+        fastify.log.debug("[getLocalJwksFn] Returning test JWKS");
+        return testJwks;
+      }
+
       if (!fastify.nodeCache) {
         fastify.log.debug("[getLocalJwksFn] Node cache is not initialized");
         return undefined;
@@ -46,4 +57,9 @@ export const autoConfig = (
   };
 };
 
-export default apiAuthPlugin;
+export default fp(
+  async (fastify: FastifyInstance) => {
+    await fastify.register(apiAuthPlugin, autoConfig(fastify));
+  },
+  { name: "api-auth-config" },
+);

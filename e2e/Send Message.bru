@@ -1,0 +1,43 @@
+meta {
+  name: Send Message
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{apiGatewayUrl}}/api/v1/messages
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {
+    
+  }
+}
+
+body:multipart-form {
+  subject: Gateway Test Message
+  plainTextBody: This is a Gateway test message
+  htmlBody: <html><p> Gateway test message HTML </p> </html>
+  securityLevel: confidential
+  language: en
+  scheduledAt: 2025-11-24T08:00:00.000Z
+  recipient: '''
+    {
+      "type": "email",
+      "firstName": "Kaylah",
+      "lastName": "Jerde",
+      "email": "load-test-profile-1@loadtesting.local"
+    }
+  '''
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,283 @@
+openapi: 3.0.3
+info:
+  title: Get Latest Message Events
+  version: 1.0.0
+  description: |
+    Query the latest event for each message with filtering and pagination.
+    Results are automatically filtered by the authenticated user's organizationId.
+
+paths:
+  /v1/messages/events:
+    get:
+      summary: Get latest events for messages
+      description: |
+        Returns a paginated list of the latest event for each message.
+        Supports filtering by recipient ID, subject, date range, and recipient email.
+        Results are automatically scoped to the authenticated user's organization.
+      tags:
+        - messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: recipientId
+          in: query
+          schema:
+            type: string
+          description: Filter by recipient profile ID
+          example: "profile-12345"
+        
+        - name: subject
+          in: query
+          schema:
+            type: string
+          description: Filter by subject substring (case-insensitive)
+          example: "application"
+        
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter events on or after this date (YYYY-MM-DD)
+          example: "2025-11-01"
+        
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter events on or before this date (YYYY-MM-DD)
+          example: "2025-11-30"
+        
+        - name: recipientEmail
+          in: query
+          schema:
+            type: string
+            format: email
+          description: Filter by recipient email address
+          example: "john.doe@example.ie"
+        
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of results per page
+          example: 20
+        
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Number of results to skip
+          example: 40
+
+      responses:
+        '200':
+          description: Successfully retrieved message events
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - metadata
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MessageEvent'
+                  
+                  metadata:
+                    type: object
+                    required:
+                      - totalCount
+                      - limit
+                      - offset
+                      - links
+                    properties:
+                      totalCount:
+                        type: integer
+                        description: Total number of messages matching the filter
+                        example: 250
+                      
+                      limit:
+                        type: integer
+                        description: Number of results per page
+                        example: 20
+                      
+                      offset:
+                        type: integer
+                        description: Number of results skipped
+                        example: 40
+                      
+                      links:
+                        type: object
+                        required:
+                          - first
+                          - last
+                        properties:
+                          first:
+                            type: string
+                            format: uri
+                            description: Link to first page
+                            example: "/v1/messages/events?limit=20&offset=0"
+                          
+                          previous:
+                            type: string
+                            format: uri
+                            nullable: true
+                            description: Link to previous page (null if on first page)
+                            example: "/v1/messages/events?limit=20&offset=20"
+                          
+                          next:
+                            type: string
+                            format: uri
+                            nullable: true
+                            description: Link to next page (null if on last page)
+                            example: "/v1/messages/events?limit=20&offset=60"
+                          
+                          last:
+                            type: string
+                            format: uri
+                            description: Link to last page
+                            example: "/v1/messages/events?limit=20&offset=240"
+        
+        '400':
+          description: Bad request - invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "Invalid date format for startDate parameter"
+                  statusCode: 400
+                  code: "VALIDATION_ERROR"
+        
+        '401':
+          description: Unauthorized - missing or invalid authentication, or user lacks organizationId
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "No organization ID found in user data"
+                  statusCode: 401
+                  code: "UNAUTHORIZED"
+        
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "An unexpected error occurred while processing your request"
+                  statusCode: 500
+                  code: "INTERNAL_SERVER_ERROR"
+        
+        '502':
+          description: Bad gateway - downstream service error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: "Downstream service (messaging-api) returned an error"
+                  statusCode: 502
+                  code: "BAD_GATEWAY"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    MessageEvent:
+      type: object
+      required:
+        - messageId
+        - subject
+        - recipientId
+        - recipientEmail
+        - eventType
+        - timestamp
+      properties:
+        messageId:
+          type: string
+          format: uuid
+          description: Unique identifier for the message
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        
+        subject:
+          type: string
+          description: Subject of the message
+          example: "Important update regarding your application"
+        
+        recipientId:
+          type: string
+          description: Profile ID of the recipient
+          example: "profile-12345"
+        
+        recipientEmail:
+          type: string
+          format: email
+          description: Email address of the recipient
+          example: "john.doe@example.ie"
+        
+        eventType:
+          type: string
+          description: Type of the latest event
+          example: "delivered"
+          enum:
+            - sent
+            - delivered
+            - read
+            - failed
+            - bounced
+        
+        timestamp:
+          type: string
+          format: date-time
+          description: When the event occurred (ISO 8601)
+          example: "2025-11-20T14:35:22Z"
+        
+        details:
+          type: object
+          description: Optional event-specific details
+          additionalProperties: true
+          example:
+            deliveryAttempts: 1
+            smtpResponse: "250 OK"
+    
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - message
+            - statusCode
+            - code
+          properties:
+            message:
+              type: string
+              description: Human-readable error message
+            statusCode:
+              type: integer
+              description: HTTP status code
+            code:
+              type: string
+              description: Machine-readable error code

@@ -9,6 +9,8 @@ export async function teardown() {}
 
 const customEnvValues: Record<string, string> = {
   HOST_URL: "http://localhost:1000",
+  LOGTO_JWK_ENDPOINT: "http://localhost:3301/oidc/jwks",
+  LOGTO_OIDC_ENDPOINT: "http://localhost:3301/oidc",
 };
 
 async function setVariablesToRunWithoutEnvFile() {

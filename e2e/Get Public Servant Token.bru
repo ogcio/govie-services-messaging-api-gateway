@@ -1,0 +1,39 @@
+meta {
+  name: Get Public Servant Token
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{logtoBaseUrl}}/oidc/token
+  body: formUrlEncoded
+  auth: basic
+}
+
+headers {
+  Content-Type: application/x-www-form-urlencoded
+}
+
+auth:basic {
+  username: {{clientId}}
+  password: {{clientSecret}}
+}
+
+body:form-urlencoded {
+  grant_type: client_credentials
+  scope: {{scopes}}
+  organization_id: doe
+}
+
+vars:pre-request {
+  scopes: messaging:event:read profile:user.admin:* messaging:message:* upload:file:*
+}
+
+vars:post-response {
+  accessToken: res.body.access_token
+}
+
+assert {
+  res.status: eq 200
+  res.body.access_token: isDefined
+}

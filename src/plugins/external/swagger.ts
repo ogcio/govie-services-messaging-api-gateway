@@ -1,9 +1,9 @@
-import fs from "fs";
-import { join } from "path";
 import fastifySwagger from "@fastify/swagger";
 import fastifySwaggerUi from "@fastify/swagger-ui";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
+import fs from "fs";
+import { join } from "path";
 import { getPackageInfo } from "../../utils/get-package-info.js";
 
 export default fp(
@@ -17,6 +17,16 @@ export default fp(
           description: "Public facing APIs to access MessagingIE features",
           version: (await getPackageInfo()).version,
         },
+        tags: [
+          {
+            name: "messages",
+            description: "Message dispatch and history operations",
+          },
+          {
+            name: "healthcheck",
+            description: "Service health status",
+          },
+        ],
         components: {
           securitySchemes: {
             bearerAuth: {

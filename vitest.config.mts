@@ -15,6 +15,7 @@ export default defineConfig({
     },
     include: [
       "./src/@(test?(s)|__test?(s)__)/**/*.test.@(js|cjs|mjs|tap|cts|jsx|mts|ts|tsx)",
+      //"./src/test/routes/messages/get-events-for-message.test.ts",
     ],
     exclude: ["./src/**/@(fixture*(s)|dist|node_modules)/**"],
     maxConcurrency: 1,

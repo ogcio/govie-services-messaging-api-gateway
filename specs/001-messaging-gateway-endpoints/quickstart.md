@@ -1,0 +1,937 @@
+# Quickstart: Messaging Gateway Endpoints
+
+**Created**: 2025-11-20  
+**Last Updated**: 2025-11-21  
+**Purpose**: Validate implementation by following step-by-step instructions  
+**Audience**: Developers testing the implementation
+
+## Quick Reference
+
+| Endpoint | Method | Purpose | Authentication |
+|----------|--------|---------|----------------|
+| `/api/v1/messages` | POST | Send message with attachments | Required (JWT) |
+| `/api/v1/messages/events` | GET | Query latest message events | Required (JWT) |
+| `/api/v1/messages/:messageId/events` | GET | Get message event history | Required (JWT) |
+| `/health` | GET | Health check | None |
+| `/docs` | GET | OpenAPI/Swagger UI | None |
+
+## Prerequisites
+
+- Node.js >= 22.0.0
+- pnpm installed
+- Access to downstream APIs (profile-api, messaging-api, upload-api)
+- Valid JWT token for a public servant user with `organizationId`
+- Test recipient profiles in the profile system
+
+## Environment Setup
+
+1. **Clone and install dependencies**:
+
+```bash
+git clone <repository-url>
+cd govie-services-messaging-api-gateway
+git checkout 001-messaging-gateway-endpoints
+pnpm install
+```
+
+2. **Configure environment variables**:
+
+Create a `.env` file with:
+
+```bash
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# Downstream API URLs
+PROFILE_API_URL=https://profile-api.example.ie
+MESSAGING_API_URL=https://messaging-api.example.ie
+UPLOAD_API_URL=https://upload-api.example.ie
+
+# Authentication
+AUTH_PUBLIC_KEY=<your-public-key>
+
+# Logging
+LOG_LEVEL=debug
+```
+
+3. **Start the development server**:
+
+```bash
+pnpm run dev
+```
+
+The server should start on `http://localhost:3000` and display:
+
+```
+Server listening at http://localhost:3000
+OpenAPI documentation available at http://localhost:3000/documentation
+```
+
+## Validation Steps
+
+### Step 1: Verify Health Check
+
+```bash
+curl http://localhost:3000/health
+```
+
+**Expected Response** (200 OK):
+
+```json
+{
+  "status": "ok",
+  "version": "0.1.0"
+}
+```
+
+### Step 2: View API Documentation
+
+Open your browser to `http://localhost:3000/documentation` and verify:
+
+- ✅ Three message endpoints are documented
+- ✅ All request/response schemas are visible
+- ✅ Authentication requirements are shown
+- ✅ HTTP status codes are documented
+
+### Step 3: Test Authentication (Should Fail Without Token)
+
+```bash
+curl -X POST http://localhost:3000/api/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "Test",
+    "plainTextBody": "Test body",
+    "securityLevel": "public",
+    "language": "en",
+    "scheduledAt": "2025-11-20T14:00:00Z",
+    "recipient": {
+      "type": "email",
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john.doe@example.ie"
+    }
+  }'
+```
+
+**Expected Response** (401 Unauthorized):
+
+```json
+{
+  "error": {
+    "message": "No authorization header found",
+    "statusCode": 401,
+    "code": "UNAUTHORIZED"
+  }
+}
+```
+
+### Step 4: Send Message Without Attachments
+
+**Setup**: Get a valid JWT token for a user with `organizationId` set.
+
+```bash
+export TOKEN="<your-jwt-token>"
+
+curl -X POST http://localhost:3000/api/v1/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "Test message from quickstart",
+    "plainTextBody": "This is a test message to verify the gateway is working correctly.",
+    "htmlBody": "<p>This is a <strong>test message</strong> to verify the gateway is working correctly.</p>",
+    "securityLevel": "public",
+    "language": "en",
+    "scheduledAt": "2025-11-20T14:00:00Z",
+    "recipient": {
+      "type": "email",
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "test.user@example.ie"
+    }
+  }'
+```
+
+**Expected Response** (201 Created):
+
+```json
+{
+  "data": {
+    "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "recipientId": "profile-12345",
+    "attachmentIds": []
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Response has HTTP 201 status
+- ✅ `messageId` is a valid UUID
+- ✅ `recipientId` matches the profile system ID
+- ✅ `attachmentIds` is an empty array
+
+### Step 5: Send Message With Attachments
+
+Create a test file:
+
+```bash
+echo "This is a test attachment" > test-attachment.txt
+```
+
+Send message with attachment:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "subject=Message with attachment" \
+  -F "plainTextBody=This message includes a file attachment." \
+  -F "securityLevel=confidential" \
+  -F "language=en" \
+  -F "scheduledAt=2025-11-20T15:00:00Z" \
+  -F 'recipient={"type":"email","firstName":"Test","lastName":"User","email":"test.user@example.ie"}' \
+  -F "attachments=@test-attachment.txt"
+```
+
+**Expected Response** (201 Created):
+
+```json
+{
+  "data": {
+    "messageId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "recipientId": "profile-12345",
+    "attachmentIds": ["file-uuid-1"]
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Response has HTTP 201 status
+- ✅ `attachmentIds` array has one element
+- ✅ Attachment ID is a valid UUID
+
+### Step 5a: Scheduling Semantics (Past vs Future)
+
+The `scheduledAt` field controls deferred dispatch. Current semantics:
+
+- A timestamp in the PAST is still forwarded; downstream may choose to dispatch immediately.
+- A timestamp in the FUTURE (e.g. +1h) is accepted and forwarded unchanged (`scheduleAt`).
+- There is no server-side delay queue in the gateway; scheduling is delegated to downstream messaging service.
+
+Example future schedule:
+
+```bash
+curl -X POST http://localhost:3000/api/v1/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "subject=Future scheduled message" \
+  -F "plainTextBody=This will be processed later." \
+  -F "securityLevel=public" \
+  -F "language=en" \
+  -F "scheduledAt=$(date -u -v+1H +"%Y-%m-%dT%H:%M:%SZ")" \
+  -F 'recipient={"type":"email","firstName":"Test","lastName":"User","email":"test.user@example.ie"}'
+```
+
+### Step 5b: Atomic Failure & Cleanup Example
+
+If an attachment upload fails (e.g. transient 502 persisting across retries), the gateway aborts the send and attempts best-effort deletion of already uploaded files.
+
+Simulate failure (example assumes downstream returns 502 for a specific filename):
+
+```bash
+curl -X POST http://localhost:3000/api/v1/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "subject=Failure simulation" \
+  -F "plainTextBody=One attachment will fail." \
+  -F "securityLevel=confidential" \
+  -F "language=en" \
+  -F "scheduledAt=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+  -F 'recipient={"type":"email","firstName":"Test","lastName":"User","email":"test.user@example.ie"}' \
+  -F "attachments=@failing-attachment.bin"
+```
+
+**Expected Response** (502 Bad Gateway):
+
+```json
+{
+  "error": {
+    "message": "Failed to upload file",
+    "statusCode": 502,
+    "code": "BAD_GATEWAY"
+  }
+}
+```
+
+Log output will include:
+
+```text
+{"phase":"upload_phase_start",...}
+{"phase":"cleanup_phase_start",...}
+{"phase":"cleanup_phase_end","deleted":2,"attempted":2,"successRate":"100.0%",...}
+```
+
+No message is dispatched; no partial artifacts remain (FR-030, FR-031).
+
+### Step 5c: Retry Behavior Illustration
+
+Transient errors (502/503/504, ETIMEDOUT, ECONNRESET) during upload/share are retried up to 3 attempts with exponential backoff (nominal 100ms, 200ms, 400ms ±50% jitter). Client errors (4xx) are not retried.
+
+Sample log lines for retries:
+
+```text
+{"msg":"retry_attempt","attempt":1,"statusCode":502,"delayMs":137}
+{"msg":"retry_attempt","attempt":2,"statusCode":503,"delayMs":295}
+```
+
+After final failed attempt a 502 error response is returned and cleanup is initiated.
+
+### Step 6: Query Latest Message Events
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/messages/events?limit=10&offset=0" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected Response** (200 OK):
+
+```json
+{
+  "data": [
+    {
+      "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "subject": "Test message from quickstart",
+      "recipientId": "profile-12345",
+      "recipientEmail": "test.user@example.ie",
+      "eventType": "sent",
+      "timestamp": "2025-11-20T14:00:15Z",
+      "details": {}
+    }
+  ],
+  "metadata": {
+    "totalCount": 2,
+    "limit": 10,
+    "offset": 0,
+    "links": {
+      "first": "/api/v1/messages/events?limit=10&offset=0",
+      "previous": null,
+      "next": null,
+      "last": "/api/v1/messages/events?limit=10&offset=0"
+    }
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Response has HTTP 200 status
+- ✅ `data` is an array of message events
+- ✅ `metadata.totalCount` reflects total messages
+- ✅ `metadata.links` contains pagination URLs
+- ✅ Only messages from user's organization are returned
+
+### Step 7: Pagination Response Structure Example (T035)
+
+The pagination response demonstrates the **GenericResponse** envelope with HATEOAS links as specified in FR-021, FR-022, and FR-034.
+
+**Key Features**:
+- `data`: Array of message event objects
+- `metadata.totalCount`: Forwarded unchanged from downstream (FR-034)
+- `metadata.links`: HATEOAS navigation (first, previous, next, last, self)
+- `metadata.limit` and `metadata.offset`: Echo sanitized request values
+
+#### Example: GET /api/v1/messages/events?limit=10&offset=20
+
+Response (200 OK):
+
+```json
+{
+  "data": [
+    {
+      "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "subject": "Test message from quickstart",
+      "recipientId": "profile-12345",
+      "recipientEmail": "test.user@example.ie",
+      "eventType": "sent",
+      "timestamp": "2025-11-20T14:00:15Z",
+      "details": {}
+    },
+    {
+      "messageId": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "subject": "Message with attachment",
+      "recipientId": "profile-12345",
+      "recipientEmail": "test.user@example.ie",
+      "eventType": "delivered",
+      "timestamp": "2025-11-20T14:05:22Z",
+      "details": { "smtpResponse": "250 OK" }
+    }
+  ],
+  "metadata": {
+    "totalCount": 47,
+    "limit": 10,
+    "offset": 20,
+    "links": {
+      "self": "/api/v1/messages/events?limit=10&offset=20",
+      "first": "/api/v1/messages/events?limit=10&offset=0",
+      "previous": "/api/v1/messages/events?limit=10&offset=10",
+      "next": "/api/v1/messages/events?limit=10&offset=30",
+      "last": "/api/v1/messages/events?limit=10&offset=40"
+    }
+  }
+}
+```
+
+**Edge Cases Covered** (per spec addendum):
+
+
+1. **Zero Results** (`totalCount=0`):
+
+  ```json
+   {
+     "data": [],
+     "metadata": {
+       "totalCount": 0,
+       "limit": 20,
+       "offset": 0,
+       "links": {
+         "self": "/api/v1/messages/events?limit=20&offset=0",
+         "first": "/api/v1/messages/events?limit=20&offset=0",
+         "previous": null,
+         "next": null,
+         "last": "/api/v1/messages/events?limit=20&offset=0"
+       }
+     }
+   }
+   ```
+
+1. **Single Page** (totalCount ≤ limit):
+
+  ```json
+   {
+     "data": [ /* 5 events */ ],
+     "metadata": {
+       "totalCount": 5,
+       "limit": 20,
+       "offset": 0,
+       "links": {
+         "self": "/api/v1/messages/events?limit=20&offset=0",
+         "first": "/api/v1/messages/events?limit=20&offset=0",
+         "previous": null,
+         "next": null,
+         "last": "/api/v1/messages/events?limit=20&offset=0"
+       }
+     }
+   }
+   ```
+
+1. **Filters Preserved in Links**:
+  For `GET /api/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0`:
+
+  ```json
+   {
+     "metadata": {
+       "links": {
+         "self": "/api/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=0",
+         "next": "/api/v1/messages/events?recipientEmail=test@example.ie&limit=10&offset=10",
+         ...
+       }
+     }
+   }
+   ```
+
+### Step 8: Filter Message Events by Recipient
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/messages/events?recipientEmail=test.user@example.ie" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected Response** (200 OK):
+
+```json
+{
+  "data": [
+    {
+      "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "subject": "Test message from quickstart",
+      "recipientId": "profile-12345",
+      "recipientEmail": "test.user@example.ie",
+      "eventType": "sent",
+      "timestamp": "2025-11-20T14:00:15Z",
+      "details": {}
+    }
+  ],
+  "metadata": {
+    "totalCount": 1,
+    "limit": 20,
+    "offset": 0,
+    "links": {
+      "first": "/api/v1/messages/events?recipientEmail=test.user@example.ie&limit=20&offset=0",
+      "previous": null,
+      "next": null,
+      "last": "/api/v1/messages/events?recipientEmail=test.user@example.ie&limit=20&offset=0"
+    }
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Only events for the specified recipient email are returned
+- ✅ Filter parameter is preserved in pagination links
+
+### Step 9: Get Message Event History
+
+Retrieve the complete chronological event history for a specific message.
+
+#### 9a: Basic History Query
+
+```bash
+MESSAGE_ID="a1b2c3d4-e5f6-7890-abcd-ef1234567890"  # Use actual ID from Step 4
+
+curl -X GET "http://localhost:3000/api/v1/messages/$MESSAGE_ID/events" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected Response** (200 OK):
+
+```json
+{
+  "data": {
+    "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "subject": "Test message from quickstart",
+    "recipientId": "profile-12345",
+    "recipientEmail": "test.user@example.ie",
+    "events": [
+      {
+        "eventType": "queued",
+        "timestamp": "2025-11-20T14:00:10Z",
+        "details": {}
+      },
+      {
+        "eventType": "sent",
+        "timestamp": "2025-11-20T14:00:15Z",
+        "details": {
+          "deliveryAttempts": 1
+        }
+      },
+      {
+        "eventType": "delivered",
+        "timestamp": "2025-11-20T14:00:22Z",
+        "details": {
+          "smtpResponse": "250 OK"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Response has HTTP 200 status
+- ✅ `events` array contains all events in chronological order (oldest first)
+- ✅ Each event has `eventType`, `timestamp`, and optional `details`
+- ✅ Message metadata includes `messageId`, `subject`, `recipientId`, and `recipientEmail`
+
+#### 9b: History With Pagination
+
+For messages with many events, use pagination parameters:
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/messages/$MESSAGE_ID/events?limit=5&offset=0" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected Response** (200 OK):
+
+```json
+{
+  "data": {
+    "messageId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "subject": "Test message from quickstart",
+    "recipientId": "profile-12345",
+    "recipientEmail": "test.user@example.ie",
+    "events": [
+      {
+        "eventType": "queued",
+        "timestamp": "2025-11-20T14:00:10Z",
+        "details": {}
+      },
+      {
+        "eventType": "sent",
+        "timestamp": "2025-11-20T14:00:15Z",
+        "details": {
+          "deliveryAttempts": 1
+        }
+      },
+      {
+        "eventType": "delivered",
+        "timestamp": "2025-11-20T14:00:22Z",
+        "details": {
+          "smtpResponse": "250 OK"
+        }
+      },
+      {
+        "eventType": "read",
+        "timestamp": "2025-11-20T14:15:30Z",
+        "details": {
+          "userAgent": "Mozilla/5.0..."
+        }
+      },
+      {
+        "eventType": "archived",
+        "timestamp": "2025-11-20T15:00:00Z",
+        "details": {}
+      }
+    ]
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Events are returned in chronological order (oldest to newest)
+- ✅ Number of events does not exceed requested `limit`
+- ✅ Pagination parameters control which events are returned
+
+#### 9c: Error Case - Message Not Found
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/messages/00000000-0000-0000-0000-000000000000/events" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Expected Response** (404 Not Found):
+
+```json
+{
+  "error": {
+    "message": "No events found for message ID: 00000000-0000-0000-0000-000000000000",
+    "statusCode": 404,
+    "code": "NOT_FOUND"
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Response has HTTP 404 status
+- ✅ Error message indicates no events found for the specified message ID
+
+#### 9d: Error Case - Unauthorized Access
+
+```bash
+curl -X GET "http://localhost:3000/api/v1/messages/$MESSAGE_ID/events" \
+  -H "Authorization: Bearer invalid-token"
+```
+
+**Expected Response** (401 Unauthorized):
+
+```json
+{
+  "error": {
+    "message": "Invalid token",
+    "statusCode": 401,
+    "code": "UNAUTHORIZED"
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Authentication is enforced for message history access
+- ✅ Invalid tokens are rejected with 401 status
+
+### Step 10: Test Recipient Not Found (Error Case)
+
+```bash
+curl -X POST http://localhost:3000/api/v1/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "Test to non-existent recipient",
+    "plainTextBody": "This should fail.",
+    "securityLevel": "public",
+    "language": "en",
+    "scheduledAt": "2025-11-20T14:00:00Z",
+    "recipient": {
+      "type": "identity",
+      "ppsn": "9999999Z",
+      "dateOfBirth": "1990-01-01"
+    }
+  }'
+```
+
+**Expected Response** (404 Not Found):
+
+```json
+{
+  "error": {
+    "message": "Recipient not found in profile system",
+    "statusCode": 404,
+    "code": "RECIPIENT_NOT_FOUND"
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Response has HTTP 404 status
+- ✅ Error message clearly indicates recipient not found
+
+### Step 11: Test Validation Error (Error Case)
+
+```bash
+curl -X POST http://localhost:3000/api/v1/messages \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "",
+    "plainTextBody": "Body",
+    "securityLevel": "invalid",
+    "language": "en",
+    "scheduledAt": "2025-11-20T14:00:00Z",
+    "recipient": {
+      "type": "email",
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "invalid-email"
+    }
+  }'
+```
+
+**Expected Response** (400 Bad Request):
+
+```json
+{
+  "error": {
+    "message": "Validation failed: subject must have at least 1 character, securityLevel must be 'confidential' or 'public', email must be a valid email format",
+    "statusCode": 400,
+    "code": "VALIDATION_ERROR"
+  }
+}
+```
+
+**Validation Checks**:
+
+- ✅ Response has HTTP 400 status
+- ✅ Error message details all validation failures
+
+## Running Tests
+
+### Unit Tests
+
+```bash
+pnpm run test
+```
+
+**Expected**:
+
+- ✅ All service unit tests pass
+- ✅ All utility unit tests pass
+- ✅ Code coverage >= 80%
+
+### Integration Tests
+
+Integration tests automatically run as part of the test suite:
+
+```bash
+pnpm run test
+```
+
+**Expected**:
+
+- ✅ All route integration tests pass
+- ✅ Authentication middleware tests pass
+- ✅ Error handling tests pass
+
+### Contract Tests
+
+Contract tests validate that the implementation matches the OpenAPI schemas:
+
+```bash
+pnpm run test
+```
+
+**Expected**:
+
+- ✅ All request schemas validate correctly
+- ✅ All response schemas validate correctly
+- ✅ All HTTP status codes match specification
+
+## Troubleshooting
+
+### Issue: "Downstream service temporarily unavailable" (503)
+
+**Cause**: One of the downstream APIs (profile, messaging, upload) is not reachable.
+
+**Solution**:
+
+1. Check environment variables for correct API URLs
+2. Verify downstream services are running
+3. Check network connectivity
+4. Review logs for specific service errors
+
+### Issue: "No organization ID found in user data" (401)
+
+**Cause**: JWT token doesn't include `organizationId` claim.
+
+**Solution**:
+
+1. Verify your JWT token includes the `organizationId` claim
+2. Check token is not expired
+3. Ensure you're using a public servant user token, not a regular user
+
+### Issue: Multipart form parsing error
+
+**Cause**: Incorrect Content-Type header or malformed multipart data.
+
+**Solution**:
+
+1. Use `-F` flag with curl (not `-d`) for multipart requests
+2. Ensure recipient JSON is properly formatted
+3. Verify file exists and is readable
+
+### Issue: Tests failing
+
+**Cause**: Various causes - missing dependencies, configuration errors, etc.
+
+**Solution**:
+
+1. Run `pnpm install` to ensure all dependencies are installed
+2. Check `.env` file has all required variables
+3. Review test output for specific errors
+4. Ensure test databases/services are available
+
+## Success Criteria
+
+After completing all validation steps, you should have:
+
+- ✅ Successfully sent a message without attachments
+- ✅ Successfully sent a message with file attachments
+- ✅ Successfully queried latest message events with pagination
+- ✅ Successfully filtered message events by recipient
+- ✅ Successfully retrieved complete event history for a message
+- ✅ Verified error handling for non-existent recipients (404)
+- ✅ Verified validation error handling (400)
+- ✅ Verified authentication enforcement (401)
+- ✅ All automated tests passing
+- ✅ API documentation is accurate and complete
+
+## Next Steps
+
+Once quickstart validation is complete:
+
+1. **Performance Testing**: Run load tests with concurrent requests to verify throughput
+2. **Security Review**: Audit authentication, authorization, and data isolation
+3. **Monitoring Setup**: Configure alerts for error rates, latency, and cleanup success rates
+4. **Production Deployment**: Follow deployment checklist below
+5. **Team Documentation**: Update runbooks with operational procedures
+
+## Production Readiness Checklist
+
+Before deploying to production:
+
+### Infrastructure
+- [ ] Environment variables configured for production URLs
+- [ ] JWT public key configured correctly
+- [ ] Rate limiting configured (if required)
+- [ ] Load balancer health checks pointing to `/health`
+- [ ] Horizontal scaling configured (multiple instances)
+
+### Observability
+- [ ] OpenTelemetry collector endpoint configured (`OTEL_COLLECTOR_URL`)
+- [ ] Log aggregation configured (structured JSON logs)
+- [ ] Metrics dashboards created (message send duration, upload phase, cleanup rates)
+- [ ] Alerts configured:
+  - Error rate > 5%
+  - P95 latency > 2 seconds
+  - Cleanup success rate < 95%
+  - Downstream service failures
+
+### Security
+- [ ] HTTPS/TLS enabled
+- [ ] CORS configured appropriately
+- [ ] JWT signature verification enabled
+- [ ] Organization ID validation enforced
+- [ ] File upload size limits configured
+- [ ] Rate limiting enabled (if applicable)
+
+### Performance
+- [ ] Database connection pooling optimized
+- [ ] File streaming configured (not buffering in memory)
+- [ ] Retry timeouts tuned for production
+- [ ] Concurrent request limits set
+
+### Testing
+- [ ] All integration tests passing
+- [ ] Contract tests validating OpenAPI spec
+- [ ] Load tests completed successfully
+- [ ] Failover scenarios tested
+- [ ] Recovery procedures documented
+
+## Observability & Monitoring
+
+### Traces
+The gateway automatically creates OpenTelemetry traces for:
+- `profile_lookup_duration` - Recipient profile lookup time
+- `upload_phase_duration` - File upload batch processing time
+- `message_send_duration` - Complete message dispatch time
+- `cleanup_duration` - Cleanup operation time (on failures)
+
+View traces in your OpenTelemetry-compatible backend (Grafana Tempo, Jaeger, etc.).
+
+### Metrics
+Key metrics to monitor:
+- **Request rate**: Total requests per second
+- **Error rate**: Failed requests as percentage of total
+- **Latency percentiles**: P50, P95, P99 response times
+- **Cleanup success rate**: Percentage of successful file deletions (target: ≥95%)
+- **Downstream failures**: Failures from profile-api, messaging-api, upload-api
+
+### Logs
+Structured logs include:
+- `correlationId` - Request tracking across services
+- `organizationId` - For filtering by organization
+- `phase` - Orchestration phase (profile_lookup_start, upload_phase_end, etc.)
+- `durationMs` - Phase timing information
+
+Query logs by correlation ID to trace a specific request through the system.
+
+## Notes
+
+### API Design Principles
+- All API responses use consistent JSON structure with `data` and optional `metadata`
+- Authentication is enforced on all endpoints via the existing gateway-auth plugin
+- Organization-level data isolation is handled transparently by the Building Blocks SDK
+- Pagination uses limit/offset with HATEOAS links for easy navigation
+
+### File Handling
+- File uploads are streamed to minimize memory usage
+- Maximum file size and count limits are enforced
+- Attachments are automatically shared with recipients via upload-api
+- **Multipart-only**: The send-message endpoint currently accepts multipart/form-data only; JSON fallback is deferred
+
+### Message Scheduling
+- `scheduledAt` is forwarded unchanged to downstream messaging service
+- Gateway does not internally queue messages (scheduling delegated downstream)
+- Past timestamps are accepted and processed
+- Future timestamps enable deferred delivery
+
+### Error Handling & Resilience
+- **Retry behavior** (FR-032, FR-039): Transient errors (502/503/504, ETIMEDOUT, ECONNRESET) are retried (max 3 attempts with exponential backoff)
+- **No retry on client errors**: 4xx errors fail immediately with original status
+- **Cleanup behavior** (FR-031, SC-008): On failure after any successful upload/share, best-effort deletion runs; success rate logged (`deleted/attempted`). Target ≥95%
+- **Atomicity** (FR-030): No partial message dispatch occurs if any pre-dispatch phase fails (recipient lookup, upload, share)
+
+### Performance Characteristics
+- **Expected latency**: P95 < 2 seconds for messages without attachments
+- **With attachments**: Additional ~500ms per file for upload/share operations
+- **Concurrency**: Supports parallel upload and share operations
+- **Throughput**: Designed for ~100 requests/second per instance
+
+### Known Limitations
+- Multipart/form-data only (no JSON payload support yet)
+- No built-in rate limiting (implement at load balancer level)
+- Cleanup success alerting not yet implemented (planned for future release)
+- Message status tracking requires querying downstream messaging-api directly
