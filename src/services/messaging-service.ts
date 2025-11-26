@@ -4,6 +4,10 @@ import type {
 } from "@ogcio/building-blocks-sdk/dist/types/index.js";
 import type { FastifyBaseLogger } from "fastify";
 import createError from "http-errors";
+import type {
+  MessageEvent,
+  MessageHistoryEvent,
+} from "../routes/api/v1/messages/schema.js";
 import { executeWithRetry } from "../utils/retry.js";
 import { lookupRecipient } from "./profile-service.js";
 
@@ -47,16 +51,12 @@ export interface MessageEventsQuery {
   status?: string;
 }
 
-/**
- * SDK returns data in its own format; we pass through unchanged
- * and wrap with GenericResponse in route handlers
- */
-export type MessageEventRecord = Awaited<
-  ReturnType<Messaging["getMessageEvents"]>
+export type EventForMessageId = Awaited<
+  ReturnType<Messaging["getEventsForMessage"]>
 >["data"][number];
 
 export interface MessageEventsPage {
-  data: MessageEventRecord[];
+  data: MessageEvent[];
   totalCount: number;
 }
 
@@ -166,9 +166,9 @@ export async function getEventsByMessageId(
   messagingSdk: Messaging,
   logger: FastifyBaseLogger,
   messageId: string,
-): Promise<MessageEventRecord[]> {
+): Promise<MessageHistoryEvent[]> {
   try {
-    const res = await messagingSdk.getMessageEvents({ messageId });
+    const res = await messagingSdk.getEventsForMessage(messageId);
     if (res.error) {
       const detail = res.error.detail || "Failed to get events for message";
       throw createError.BadGateway(detail);

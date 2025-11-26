@@ -14,7 +14,7 @@ import { buildTestServer } from "../../build-test-server.js";
 
 describe("GET /v1/messages/:messageId/events integration", () => {
   let app: FastifyInstance;
-  let messagingSdk: { getMessageEvents: ReturnType<typeof vi.fn> };
+  let messagingSdk: { getEventsForMessage: ReturnType<typeof vi.fn> };
 
   beforeAll(async () => {
     app = await buildTestServer();
@@ -33,7 +33,7 @@ describe("GET /v1/messages/:messageId/events integration", () => {
 
   beforeEach(() => {
     messagingSdk = {
-      getMessageEvents: vi.fn(),
+      getEventsForMessage: vi.fn(),
     };
     app.getMessagingSdk = vi.fn().mockReturnValue(messagingSdk);
   });
@@ -56,7 +56,8 @@ describe("GET /v1/messages/:messageId/events integration", () => {
         receiverFullName: "John Doe",
         eventType: "email_sent",
         eventStatus: "sent",
-        scheduledAt: "2023-01-01T10:00:00.000Z",
+        data: { messageId: "recip-123" },
+        createdAt: "2023-01-01T10:05:00.000Z",
       },
       {
         id: randomUUID(),
@@ -65,16 +66,18 @@ describe("GET /v1/messages/:messageId/events integration", () => {
         receiverFullName: "John Doe",
         eventType: "email_delivered",
         eventStatus: "delivered",
-        scheduledAt: "2023-01-01T10:05:00.000Z",
+        data: { messageId: "recip-123" },
+        createdAt: "2023-01-01T10:05:00.000Z",
       },
     ];
-    messagingSdk.getMessageEvents.mockResolvedValueOnce({
+    messagingSdk.getEventsForMessage.mockResolvedValueOnce({
       data: events,
     });
     const res = await app.inject({
       method: "GET",
       url: `/api/v1/messages/${messageId}/events`,
     });
+    console.log({ GIANNI: res.body });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
     expect(Array.isArray(payload.data)).toBe(true);
@@ -85,13 +88,14 @@ describe("GET /v1/messages/:messageId/events integration", () => {
 
   it("returns 404 for non-existent messageId", async () => {
     const messageId = randomUUID();
-    messagingSdk.getMessageEvents.mockResolvedValueOnce({
+    messagingSdk.getEventsForMessage.mockResolvedValueOnce({
       data: [],
     });
     const res = await app.inject({
       method: "GET",
       url: `/api/v1/messages/${messageId}/events`,
     });
+
     expect(res.statusCode).toBe(404);
     const payload = res.json();
     expect(payload.code).toBe("NOT_FOUND");
@@ -128,7 +132,9 @@ describe("GET /v1/messages/:messageId/events integration", () => {
       await noOrgApp.ready();
 
       const messageId = randomUUID();
-      messagingSdk.getMessageEvents.mockRejectedValueOnce({ statusCode: 403 });
+      messagingSdk.getEventsForMessage.mockRejectedValueOnce({
+        statusCode: 403,
+      });
       const res = await noOrgApp.inject({
         method: "GET",
         url: `/api/v1/messages/${messageId}/events`,

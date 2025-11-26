@@ -47,45 +47,124 @@ paths:
                     items:
                       type: object
                       required:
-                        - id
                         - messageId
-                        - subject
-                        - receiverFullName
                         - eventType
                         - eventStatus
-                        - scheduledAt
+                        - data
+                        - createdAt
                       properties:
-                        id:
-                          type: string
-                          format: uuid
-                          description: Unique id of the event
                         messageId:
                           type: string
                           format: uuid
-                          description: Unique id of the related message
-                        subject:
-                          type: string
-                          description: Subject of the related message
-                        receiverFullName:
-                          type: string
-                          description: Full name of the recipient
+                          description: Message id
                         eventType:
                           type: string
                           description: Event type description
                         eventStatus:
                           type: string
                           description: Status for event type
-                        scheduledAt:
+                        data:
+                          anyOf:
+                            - type: object
+                              required:
+                                - messageId
+                                - receiverFullName
+                                - receiverPPSN
+                                - receiverUserId
+                                - subject
+                                - language
+                                - plainText
+                                - transports
+                                - scheduledAt
+                                - organisationName
+                                - security
+                              properties:
+                                messageId:
+                                  type: string
+                                  description: Unique id of the related message
+                                receiverFullName:
+                                  type: string
+                                  description: Full name of the recipient
+                                receiverPPSN:
+                                  type: string
+                                  description: PPSN of the recipient
+                                receiverUserId:
+                                  type: string
+                                  description: User id of recipient
+                                subject:
+                                  type: string
+                                  description: Subject of the related message
+                                language:
+                                  type: string
+                                  description: Language of the related message
+                                excerpt:
+                                  type: string
+                                  description: Excerpt of the related message
+                                richText:
+                                  type: string
+                                  description: Rich text content of the related message
+                                plainText:
+                                  type: string
+                                  description: Plain text context of the related message
+                                threadName:
+                                  type: string
+                                  description: Thread name of the related message
+                                transports:
+                                  type: array
+                                  items:
+                                    type: string
+                                  description: Selected transports to send the message
+                                scheduledAt:
+                                  type: string
+                                  format: date-time
+                                  description: Date and time which describes when the message has to be sent
+                                senderUserId:
+                                  type: string
+                                  description: Unique user id of the sender
+                                senderFullName:
+                                  type: string
+                                  description: Full name of the sender
+                                senderPPSN:
+                                  type: string
+                                  description: PPSN of the sender
+                                senderApplicationId:
+                                  type: string
+                                  description: Unique id of the M2M application that sent the message
+                                organisationName:
+                                  type: string
+                                  description: Organisation related to the sender
+                                security:
+                                  enum:
+                                    - public
+                                    - confidential
+                                  description: "Security classification of the message: 'public' to show the
+                                    original message in the sent email,
+                                    'confidential' to show the content only
+                                    after login in MessagingIE"
+                                  examples:
+                                    - confidential
+                            - type: object
+                              required:
+                                - messageId
+                                - jobId
+                              properties:
+                                messageId:
+                                  type: string
+                                  description: Unique id of the related message
+                                jobId:
+                                  type: string
+                                  description: Unique id of the job
+                            - type: object
+                              required:
+                                - messageId
+                              properties:
+                                messageId:
+                                  type: string
+                                  description: Unique id of the related message
+                        createdAt:
                           type: string
-                          description: Date and time which describes when the message has to be sent
-                      example:
-                        id: e1f2g3h4-i5j6-7890-abcd-ef1234567890
-                        messageId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                        subject: Welcome to MessagingIE
-                        receiverFullName: John Doe
-                        eventType: delivered
-                        eventStatus: success
-                        scheduledAt: 2025-11-25T14:30:00Z
+                          format: date-time
+                          description: Date and time which describes when the event has been recorded
                   metadata:
                     type: object
                     properties:

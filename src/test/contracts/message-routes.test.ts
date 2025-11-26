@@ -117,6 +117,6 @@ describe("Message Routes - Contract Tests (Phase 2)", () => {
     expect(dataSchema.type).toBe("array");
     expect(dataSchema.items).toBeDefined();
     expect(dataSchema.items.properties).toHaveProperty("eventType");
-    expect(dataSchema.items.properties).toHaveProperty("scheduledAt");
+    expect(dataSchema.items.properties).toHaveProperty("createdAt");
   });
 });
