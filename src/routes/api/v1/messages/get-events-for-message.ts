@@ -45,6 +45,7 @@ const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
 
       const result = await queryMessageEvents(
         fastify.getMessagingSdk(authResponse.token),
+        fastify.getProfileSdk(authResponse.token),
         request.log,
         {
           messageId,

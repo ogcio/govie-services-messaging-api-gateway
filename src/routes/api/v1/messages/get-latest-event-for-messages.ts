@@ -50,6 +50,7 @@ const getLatestEventForMessages: FastifyPluginAsyncTypebox = async (
 
       const page = await queryMessageEvents(
         fastify.getMessagingSdk(authResponse.token),
+        fastify.getProfileSdk(authResponse.token),
         request.log,
         filters,
       );
