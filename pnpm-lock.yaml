@@ -39,8 +39,8 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
       '@ogcio/building-blocks-sdk':
-        specifier: ^0.2.67
-        version: 0.2.67(typescript@5.9.3)
+        specifier: ^0.2.68
+        version: 0.2.68(typescript@5.9.3)
       '@ogcio/fastify-error-handler':
         specifier: ^5.2.1
         version: 5.2.1
@@ -648,8 +648,8 @@ packages:
   '@ogcio/api-auth@5.2.1':
     resolution: {integrity: sha512-WyhtahlZK6Z0RAnxrhgUQenj1mUFCYT9HkbHPmpNhWwnXitNEFxejmZ3jt0A8MabQ9JNFnUkCdHpIApqkZFIZg==}
 
-  '@ogcio/building-blocks-sdk@0.2.67':
-    resolution: {integrity: sha512-0opA02HOVNlywUY/akjDnvBqq0TEC/YOy1mqhtDIBoExS79TkhV8CvV8C39PS43TKG8k8aB5s+reED7+gT/4Vg==}
+  '@ogcio/building-blocks-sdk@0.2.68':
+    resolution: {integrity: sha512-PEGLrvUpqeHEMrGoLWpINPuasz63KR4yks79LRef9zyVnes4HseALfz0zpMgFMb3Kwqxe+PWJJybG4M3hqq27w==}
     peerDependencies:
       '@logto/node': 2.5.5
       unleash-client: ^6.8.0
@@ -3415,7 +3415,7 @@ snapshots:
     transitivePeerDependencies:
       - aws-crt
 
-  '@ogcio/building-blocks-sdk@0.2.67(typescript@5.9.3)':
+  '@ogcio/building-blocks-sdk@0.2.68(typescript@5.9.3)':
     dependencies:
       '@ogcio/analytics-sdk': 0.2.5
       '@sinclair/typebox': 0.34.41
