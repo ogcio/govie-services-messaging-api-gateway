@@ -97,7 +97,6 @@ describe("Message Routes - Contract Tests (Phase 2)", () => {
     expect(dataSchema.properties).toHaveProperty("messageId");
     expect(dataSchema.properties).toHaveProperty("recipientId");
     expect(dataSchema.properties).toHaveProperty("attachmentIds");
-    expect(dataSchema.properties).toHaveProperty("status");
   });
 
   // T087: Contract test for history schema correctness

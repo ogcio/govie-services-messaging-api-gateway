@@ -1,11 +1,17 @@
 # GovIE MessagingIE API Gateway
 
-A production-ready Node.js API scaffolding built with Fastify, featuring TypeScript, OpenAPI documentation, and comprehensive observability tooling.
+Gateway service exposing a curated set of MessagingIE capabilities for authorised Public Servants. It provides APIs to:
+
+- Send a message (optionally with up to 3 attachments)
+- Retrieve the full event history for a message
+- Retrieve the latest (most recent) event for multiple messages
+
+Access is restricted to authenticated Public Servant applications (client credential flow). The gateway wraps downstream services and applies organisation scoping, validation, retry logic and consistent error responses.
 
 ## Features
 
 - **Type Safety**: Full TypeScript support with TypeBox schema validation
-- **API Documentation**: Auto-generated OpenAPI/Swagger documentation
+- **API Documentation**: Auto-generated OpenAPI (Swagger UI served at `/docs`)
 - **Observability**: Integrated logging, metrics, and tracing with OpenTelemetry
 - **Testing**: Complete test suite with Vitest and testcontainers
 - **Code Quality**: Biome for linting and formatting, Husky for git hooks
@@ -14,6 +20,26 @@ A production-ready Node.js API scaffolding built with Fastify, featuring TypeScr
 
 - Node.js >= 22.0.0
 - pnpm (recommended) or npm
+
+## Authentication
+
+All endpoints (except `/health`) require a bearer token obtained via the OAuth2 client credentials flow. Request a `client_id` and `client_secret` and perform:
+
+```bash
+curl --request POST \
+  --url {AUTH_URL}/oidc/token \
+  --header 'authorization: Basic {BASE64(clientId:clientSecret)}' \
+  --header 'content-type: application/x-www-form-urlencoded' \
+  --data grant_type=client_credentials \
+  --data 'scope=messaging:event:read profile:user.admin:* messaging:message:* upload:file:*' \
+  --data organization_id={ORGANIZATION_ID}
+```
+
+Include the resulting access token in requests:
+
+```bash
+Authorization: Bearer <access_token>
+```
 
 ## Getting Started
 
@@ -35,14 +61,15 @@ Copy the `.env.sample` to `.env` file and set your values.
 pnpm run dev
 ```
 
-The server will start on `http://localhost:3000` (or your configured PORT).
+The server will start on `http://localhost:8123` (or your configured PORT).
 
 ### API Documentation
 
-Once the server is running, you can access:
+Once the server is running you can access:
 
-- **Swagger UI**: `http://localhost:3000/documentation`
-- **OpenAPI Spec**: The `openapi-definition.yml` file is auto-generated on server start
+- **Swagger UI**: `http://localhost:8123/docs`
+- **OpenAPI JSON**: `GET /docs/json`
+- **OpenAPI Definition File**: Generated as `openapi-definition.yml` on start
 
 ## Available Scripts
 
@@ -57,22 +84,36 @@ For the other scripts, check [package.json](package.json).
 
 ## Project Structure
 
-```
+```text
 src/
-├── index.ts              # Application entry point
-├── server.ts             # Server configuration
-├── instrumentation.ts    # OpenTelemetry setup
+├── index.ts               # Application entry point
+├── server.ts              # Fastify instance creation & boot
+├── instrumentation.ts     # OpenTelemetry setup
+├── const/                 # Static constants (e.g. pagination, attachment limits)
 ├── plugins/
-│   └── external/         # External plugins (env, swagger, etc.)
-│   └── internal/         # Internal plugins (logger, error handler, etc.)
+│   ├── external/          # Third-party & cross-cutting plugins (env, swagger, multipart, under-pressure)
+│   └── internal/          # Internal plugins (auth wrappers, error handler, logging, cache, SDK bindings)
+├── public/                # Static assets served under / (e.g. logo for docs)
 ├── routes/
-│   ├── healthcheck.ts    # Health check endpoint
-│   └── examples/         # Example API routes
-├── schemas/              # Shared schema definitions
-├── utils/                # Utility functions
-├── migrations/           # Database migration scripts
-└── test/                 # Test files and utilities
+│   ├── healthcheck.ts     # GET /health endpoint
+│   ├── shared-routes.ts   # Common route types & helpers
+│   └── api/v1/messages/   # Messaging endpoints (send, latest event, history)
+├── schemas/               # TypeBox schemas (message, attachment, pagination, recipient, responses)
+├── services/              # Orchestration & downstream service wrappers
+├── utils/                 # Utility helpers (auth, pagination, retry, package info)
+├── types/                 # Type augmentation (Fastify declarations)
+└── test/                  # Test suite (routes, services, utils, contracts)
 ```
+
+## Runtime Dependencies (Dev)
+
+Before starting `pnpm dev`, ensure the following services are available (locally or in a reachable environment):
+
+- `profile-api`
+- `upload-api`
+- `messaging-api`
+- `scheduler-api`
+- `logto` (for auth / token issuance)
 
 ## API Endpoints
 
@@ -80,17 +121,13 @@ src/
 
 - `GET /health` - Returns service health and version information
 
-### Examples
-
-- `GET /api/v1/examples/` - List examples with pagination support
-
 ### Messaging Endpoints
 
-The gateway provides three core messaging endpoints for public servants to send messages and query message events.
+The gateway provides three core messaging endpoints for Public Servants to send messages and query message events.
 
-#### Send Message with Attachments
+#### Send Message (multipart form)
 
-- `POST /api/v1/messages` - Send a message with optional file attachments
+- `POST /api/v1/messages` - Send a message with optional file attachments (max 3 per message)
 
 **Features:**
 
@@ -111,7 +148,26 @@ The gateway provides three core messaging endpoints for public servants to send 
 - `recipient` (required): JSON object with recipient details
   - For email: `{ "type": "email", "firstName": "...", "lastName": "...", "email": "..." }`
   - For identity: `{ "type": "identity", "ppsn": "...", "dateOfBirth": "..." }`
-- `attachments` (optional): One or more file uploads
+- `attachments` (optional): Up to 3 file parts. Provide multiple parts each with the same field name `attachments`:
+  - `attachments=@file1.pdf`
+  - `attachments=@file2.png`
+  - `attachments=@file3.txt`
+
+Example multipart (curl):
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer <token>" \
+  -F 'subject=Your Tax Return is Ready' \
+  -F 'plainTextBody=Dear Jane, your tax return is ready.' \
+  -F 'securityLevel=confidential' \
+  -F 'language=en' \
+  -F 'scheduledAt=2025-11-25T14:30:00Z' \
+  -F 'recipient={"type":"email","firstName":"Jane","lastName":"Doe","email":"jane.doe@example.ie"}' \
+  -F 'attachments=@/path/to/statement.pdf' \
+  -F 'attachments=@/path/to/summary.txt' \
+  http://localhost:8123/api/v1/messages
+```
 
 **Response** (201 Created):
 
@@ -125,9 +181,9 @@ The gateway provides three core messaging endpoints for public servants to send 
 }
 ```
 
-#### Query Latest Message Events
+#### Get Latest Event For Messages
 
-- `GET /api/v1/messages/events` - Query recent message events with filters and pagination
+- `POST /api/v1/messages/events` - Retrieve latest event for messages with filters & pagination
 
 **Features:**
 
@@ -136,11 +192,19 @@ The gateway provides three core messaging endpoints for public servants to send 
 - Organization-level data isolation
 - Configurable page size (limit/offset)
 
-**Query Parameters:**
+**Pagination Query Parameters:**
 
-- `limit` (optional): Number of results per page (default: 20)
-- `offset` (optional): Number of results to skip (default: 0)
-- `recipientEmail` (optional): Filter events by recipient email address
+- `limit` (optional): Page size (default: 20)
+- `offset` (optional): Offset for pagination (default: 0)
+
+**Body Filters (JSON, all optional):**
+
+- `recipientEmail`: Filter by recipient email
+- `recipientId`: Filter by recipient profile UUID
+- `subjectContains`: Case-insensitive subject substring match
+- `dateFrom`: ISO 8601 start timestamp
+- `dateTo`: ISO 8601 end timestamp
+- `status`: One of `delivered | scheduled | opened | failed`
 
 **Response** (200 OK):
 
@@ -222,13 +286,7 @@ The gateway provides three core messaging endpoints for public servants to send 
 }
 ```
 
-**Authentication:**
-
-All messaging endpoints require a valid JWT token with `organizationId` claim. Include the token in the `Authorization` header:
-
-```bash
-Authorization: Bearer <your-jwt-token>
-```
+**Authentication:** All messaging endpoints require a valid bearer token (see Authentication section) containing the `organizationId` claim.
 
 **Error Responses:**
 
@@ -240,6 +298,19 @@ Authorization: Bearer <your-jwt-token>
 - `503 Service Unavailable` - Temporary service outage
 
 For detailed examples and quickstart guide, see [specs/001-messaging-gateway-endpoints/quickstart.md](specs/001-messaging-gateway-endpoints/quickstart.md).
+
+## Retry Logic
+
+Transient downstream errors are retried automatically using exponential backoff with full jitter:
+
+- Status codes considered transient: `502`, `503`, `504` plus network timeouts (`ETIMEDOUT`, `ECONNRESET`)
+- Non-retryable: All `4xx` client errors
+- Attempts: Up to 3 total (initial + 2 retries)
+- Base delay: 100ms; nominal sequence 100ms → 200ms → 400ms
+- Jitter: Each delay randomized within ±50% (i.e. 50%–150% of nominal)
+- Logging: Each retry attempt is logged with attempt number and delay
+
+Implementation: see `src/utils/retry.ts`.
 
 ## Testing
 
@@ -268,5 +339,11 @@ docker build -t messaging-api-gateway:latest --build-arg "PORT={your port}" .
 ### Running with Docker
 
 ```bash
-docker run -p {your port}:{your port} --env-file .env --name messaging-api-gateway --rm messaging-api-gateway:latest
+docker run -p {PORT}:{PORT} --env-file .env --name messaging-api-gateway --rm messaging-api-gateway:latest
 ```
+
+## Notes
+
+- Only available to authorised Public Servant clients.
+- Health endpoint (`/health`) is omitted from Swagger UI.
+- OpenAPI UI served at `/docs`; JSON spec at `/docs/json`.

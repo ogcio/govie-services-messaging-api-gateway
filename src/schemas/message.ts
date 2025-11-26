@@ -138,10 +138,6 @@ export const SendMessageResponseSchema = Type.Object({
       ],
     },
   ),
-  status: Type.Literal("created", {
-    description: "Message creation status",
-    examples: ["created"],
-  }),
 });
 
 export type SendMessageResponse = Static<typeof SendMessageResponseSchema>;

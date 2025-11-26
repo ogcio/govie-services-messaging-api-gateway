@@ -1,11 +1,7 @@
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import { queryMessageEvents } from "../../../../services/messaging-service.js";
-import { requireAuthToken } from "../../../../utils/auth-helpers.js";
-import {
-  isForbiddenError,
-  sendForbidden,
-  sendNotFound,
-} from "../../../../utils/error-responses.js";
+import { requirePublicServant } from "../../../../utils/auth-helpers.js";
+import { sendNotFound } from "../../../../utils/error-responses.js";
 import {
   formatAPIResponse,
   sanitizePagination,
@@ -44,43 +40,37 @@ const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
       const query = request.query;
       const sanitized = sanitizePagination(query);
 
-      const token = requireAuthToken(request, reply);
-      if (!token) return;
+      const authResponse = requirePublicServant(request, reply);
+      if (!authResponse) return;
 
-      const messagingSdk = fastify.getMessagingSdk(token);
-
-      try {
-        const result = await queryMessageEvents(messagingSdk, request.log, {
+      const result = await queryMessageEvents(
+        fastify.getMessagingSdk(authResponse.token),
+        request.log,
+        {
           messageId,
           limit: sanitized.limit,
           offset: sanitized.offset,
-        });
-        // If no events found, return 404
-        if (!result.data || result.data.length === 0) {
-          sendNotFound(
-            reply,
-            request.id,
-            `No events found for messageId ${messageId}`,
-          );
-          return;
-        }
-        const response = formatAPIResponse({
-          data: result.data,
-          totalCount: result.totalCount,
-          request,
-          config: fastify.config,
-        });
+        },
+      );
 
-        reply.status(200).send(response);
-      } catch (err: unknown) {
-        // Map org/authorization errors to 403
-        if (isForbiddenError(err)) {
-          sendForbidden(reply, request.id);
-          return;
-        }
-        // Pass through other errors
-        throw err;
+      // If no events found, return 404
+      if (!result.data || result.data.length === 0) {
+        sendNotFound(
+          reply,
+          request.id,
+          `No events found for messageId ${messageId}`,
+        );
+        return;
       }
+
+      const response = formatAPIResponse({
+        data: result.data,
+        totalCount: result.totalCount,
+        request,
+        config: fastify.config,
+      });
+
+      reply.status(200).send(response);
     },
   );
 };

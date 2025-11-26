@@ -1,8 +1,9 @@
 import type { MultipartFile } from "@fastify/multipart";
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
 import createError from "http-errors";
+import type { TSchema } from "typebox";
 import { sendMessage } from "../../../../services/message-orchestration.js";
-import { requireAuthToken } from "../../../../utils/auth-helpers.js";
+import { requirePublicServant } from "../../../../utils/auth-helpers.js";
 import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
@@ -33,89 +34,43 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
       schema: sendMessageRouteSchema,
       preValidation: async (request, res) => {
         await fastify.gatewayCheckPermissions(request, res, []);
-        if (request.isMultipart() && request.body) {
-          // With attachFieldsToBody: true, fields have .value property
-          const body = request.body as unknown as Record<
-            string,
-            { value: unknown }
-          >;
-
-          // Extract values from wrapped fields
-          for (const key in body) {
-            const field = body[key];
-            if (field && typeof field === "object" && "value" in field) {
-              // Parse recipient JSON if it's a string
-              if (key === "recipient" && typeof field.value === "string") {
-                try {
-                  body[key] = JSON.parse(field.value) as typeof field;
-                } catch {
-                  throw createError.BadRequest("Invalid recipient JSON format");
-                }
-              } else {
-                // Extract the value for other fields
-                body[key] = field.value as typeof field;
-              }
-            }
-          }
-        }
+        preValidateMultipartBody({ request });
       },
     },
     async (
       request: FastifyRequestTypebox<typeof sendMessageRouteSchema>,
       reply: FastifyReplyTypebox<typeof sendMessageRouteSchema>,
     ) => {
-      const { body } = request;
-      const accessToken = requireAuthToken(request, reply);
-      if (!request.userData || !accessToken) {
+      const { token: accessToken, organizationId } =
+        requirePublicServant(request, reply) || {};
+      if (!accessToken || !organizationId) {
         return;
       }
 
-      // Acquire downstream SDK clients via token
-      const profileSdk = fastify.getProfileSdk(accessToken);
-      const uploadSdk = fastify.getUploadSdk(accessToken);
-      const messagingSdk = fastify.getMessagingSdk(accessToken);
-
       // Collect file parts (with attachFieldsToBody: true, files are MultipartFile objects)
-      const attachments: MultipartFile[] = [];
-      if (request.isMultipart() && request.body.attachments) {
-        const parts = Array.isArray(request.body.attachments)
-          ? request.body.attachments
-          : [request.body.attachments];
-
-        for (const part of parts) {
-          if (part && typeof part === "object" && "file" in part) {
-            // part is a MultipartFile with properties: filename, mimetype, encoding, file, toBuffer()
-            attachments.push(part as MultipartFile);
-          }
-        }
-      }
+      const attachments: MultipartFile[] = extractAttachmentsFromBody({
+        request,
+      });
 
       // Map request body to orchestration input shape
       const input = {
-        subject: body.subject,
-        plainTextBody: body.plainTextBody,
-        htmlBody: body.htmlBody,
-        securityLevel: body.securityLevel,
-        language: body.language,
-        scheduledAt: body.scheduledAt,
-        recipient: body.recipient,
-        attachments: attachments.length ? attachments : undefined,
+        ...request.body,
+        attachments,
       };
 
       try {
         const result = await sendMessage(
           {
-            profileSdk,
-            uploadSdk,
-            messagingSdk,
-            userData: request.userData,
+            profileSdk: fastify.getProfileSdk(accessToken),
+            uploadSdk: fastify.getUploadSdk(accessToken),
+            messagingSdk: fastify.getMessagingSdk(accessToken),
+            organizationId,
             logger: request.log,
           },
           input,
         );
 
-        // Assemble generic response (metadata minimal for now)
-        reply.status(201).send({ data: { ...result, status: "created" } });
+        reply.status(201).send({ data: result });
       } catch (err) {
         // http-errors already thrown by underlying services; map fallback
         if ((err as { statusCode?: number }).statusCode) throw err;
@@ -125,5 +80,55 @@ const sendMessageRoute: FastifyPluginAsyncTypebox = async (fastify) => {
     },
   );
 };
+
+function preValidateMultipartBody<T extends TSchema>(params: {
+  request: FastifyRequestTypebox<T>;
+}): void {
+  const { request } = params;
+  if (request.isMultipart() && request.body) {
+    // With attachFieldsToBody: true, fields have .value property
+    const body = request.body as unknown as Record<string, { value: unknown }>;
+
+    // Extract values from wrapped fields
+    for (const key in body) {
+      const field = body[key];
+      if (field && typeof field === "object" && "value" in field) {
+        // Parse recipient JSON if it's a string
+        if (key === "recipient" && typeof field.value === "string") {
+          try {
+            body[key] = JSON.parse(field.value) as typeof field;
+          } catch {
+            throw createError.BadRequest("Invalid recipient JSON format");
+          }
+        } else {
+          // Extract the value for other fields
+          body[key] = field.value as typeof field;
+        }
+      }
+    }
+  }
+}
+
+function extractAttachmentsFromBody(params: {
+  request: FastifyRequestTypebox<typeof sendMessageRouteSchema>;
+}): MultipartFile[] {
+  const { request } = params;
+  const attachments: MultipartFile[] = [];
+
+  if (request.isMultipart() && request.body.attachments) {
+    const parts = Array.isArray(request.body.attachments)
+      ? request.body.attachments
+      : [request.body.attachments];
+
+    for (const part of parts) {
+      if (part && typeof part === "object" && "file" in part) {
+        // part is a MultipartFile with properties: filename, mimetype, encoding, file, toBuffer()
+        attachments.push(part as MultipartFile);
+      }
+    }
+  }
+
+  return attachments;
+}
 
 export default sendMessageRoute;

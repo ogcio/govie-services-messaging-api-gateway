@@ -11,19 +11,11 @@ import { dispatchMessage } from "./messaging-service.js";
 import { lookupRecipient, type RecipientInput } from "./profile-service.js";
 import { cleanupFiles, shareFile, uploadFile } from "./upload-service.js";
 
-export interface ExtractedUserData {
-  userId: string;
-  organizationId?: string;
-  isM2MApplication: boolean;
-  accessToken: string;
-  signInMethod?: string;
-}
-
 export interface OrchestrationDeps {
   profileSdk: Profile;
   uploadSdk: Upload;
   messagingSdk: Messaging;
-  userData: ExtractedUserData;
+  organizationId: string;
   logger: FastifyBaseLogger;
 }
 
@@ -53,13 +45,12 @@ export async function sendMessage(
   deps: OrchestrationDeps,
   messageData: SendMessageInput,
 ): Promise<SendMessageResult> {
-  const { userData, logger, profileSdk, uploadSdk, messagingSdk } = deps;
+  const { organizationId, logger, profileSdk, uploadSdk, messagingSdk } = deps;
   const uploadIds: string[] = [];
 
-  if (!userData.organizationId) {
+  if (!organizationId) {
     throw createError.Unauthorized("No organization ID found in user data");
   }
-  const organizationId = userData.organizationId;
 
   try {
     // Phase 1: Recipient lookup
@@ -83,11 +74,7 @@ export async function sendMessage(
           "messaging.attachment_count": messageData.attachments?.length || 0,
         });
 
-        const result = await lookupRecipient(
-          profileSdk,
-          userData,
-          messageData.recipient,
-        );
+        const result = await lookupRecipient(profileSdk, messageData.recipient);
 
         const phase1Duration = Date.now() - phase1Start;
         logger.info(

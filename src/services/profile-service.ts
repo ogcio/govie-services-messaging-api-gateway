@@ -1,5 +1,6 @@
 import type { Profile } from "@ogcio/building-blocks-sdk/dist/types/index.js";
 import createError from "http-errors";
+import { RecipientTypes } from "../schemas/message.js";
 
 /**
  * Profile Service
@@ -54,14 +55,9 @@ export interface ExtractedUserData {
  */
 export async function lookupRecipient(
   profileSdk: Profile,
-  userData: ExtractedUserData,
   recipient: RecipientInput,
 ): Promise<RecipientLookupResult> {
-  if (!userData.organizationId) {
-    throw createError.Unauthorized("No organization ID found in user data");
-  }
-
-  if (recipient.type === "identity") {
+  if (recipient.type === RecipientTypes.Identity) {
     // PPSN + DOB lookup via listProfilesPost
     const searchResult = await profileSdk.listProfilesPost({
       query: { limit: "1" },

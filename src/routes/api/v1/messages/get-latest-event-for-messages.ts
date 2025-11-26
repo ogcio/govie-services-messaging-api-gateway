@@ -3,7 +3,7 @@ import {
   type MessageEventsQuery,
   queryMessageEvents,
 } from "../../../../services/messaging-service.js";
-import { requireAuthToken } from "../../../../utils/auth-helpers.js";
+import { requirePublicServant } from "../../../../utils/auth-helpers.js";
 import {
   formatAPIResponse,
   sanitizePagination,
@@ -40,23 +40,27 @@ const getLatestEventForMessages: FastifyPluginAsyncTypebox = async (
       >,
       reply: FastifyReplyTypebox<typeof getLatestEventForMessagesRouteSchema>,
     ) => {
-      const token = requireAuthToken(request, reply);
-      if (!token) return;
-
-      const messagingSdk = fastify.getMessagingSdk(token);
+      const authResponse = requirePublicServant(request, reply);
+      if (!authResponse) return;
 
       const filters: MessageEventsQuery = {
         ...sanitizePagination(request.query),
         ...(request.body ?? {}),
       };
 
-      const page = await queryMessageEvents(messagingSdk, request.log, filters);
+      const page = await queryMessageEvents(
+        fastify.getMessagingSdk(authResponse.token),
+        request.log,
+        filters,
+      );
+
       const response = formatAPIResponse({
         data: page.data,
         totalCount: page.totalCount,
         request,
         config: fastify.config,
       });
+
       reply.status(200).send(response);
     },
   );
