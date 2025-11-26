@@ -1,7 +1,15 @@
-import type { Messaging } from "@ogcio/building-blocks-sdk/dist/types/index.js";
+import type {
+  Messaging,
+  Profile,
+} from "@ogcio/building-blocks-sdk/dist/types/index.js";
 import type { FastifyBaseLogger } from "fastify";
 import createError from "http-errors";
+import type {
+  MessageEvent,
+  MessageHistoryEvent,
+} from "../routes/api/v1/messages/schema.js";
 import { executeWithRetry } from "../utils/retry.js";
+import { lookupRecipient } from "./profile-service.js";
 
 /**
  * Messaging Service
@@ -43,16 +51,12 @@ export interface MessageEventsQuery {
   status?: string;
 }
 
-/**
- * SDK returns data in its own format; we pass through unchanged
- * and wrap with GenericResponse in route handlers
- */
-export type MessageEventRecord = Awaited<
-  ReturnType<Messaging["getMessageEvents"]>
+export type EventForMessageId = Awaited<
+  ReturnType<Messaging["getEventsForMessage"]>
 >["data"][number];
 
 export interface MessageEventsPage {
-  data: MessageEventRecord[];
+  data: MessageEvent[];
   totalCount: number;
 }
 
@@ -117,6 +121,7 @@ export async function dispatchMessage(
  */
 export async function queryMessageEvents(
   messagingSdk: Messaging,
+  profileSdk: Profile,
   logger: FastifyBaseLogger,
   filters: MessageEventsQuery,
 ): Promise<MessageEventsPage> {
@@ -125,12 +130,20 @@ export async function queryMessageEvents(
     offset: filters.offset,
   };
   if (filters.messageId) params.messageId = filters.messageId;
-  if (filters.recipientId) params.recipientId = filters.recipientId;
   if (filters.subjectContains) params.search = filters.subjectContains;
   if (filters.dateFrom) params.dateFrom = filters.dateFrom;
   if (filters.dateTo) params.dateTo = filters.dateTo;
-  if (filters.recipientEmail) params.recipientEmail = filters.recipientEmail;
   if (filters.status) params.status = filters.status;
+  if (filters.recipientId) params.recipientId = filters.recipientId;
+  if (filters.recipientEmail) {
+    const lookedUpRecipient = await lookupRecipient(profileSdk, {
+      type: "email",
+      firstName: "Not Needed",
+      lastName: "Not Needed",
+      email: filters.recipientEmail,
+    });
+    params.recipientId = lookedUpRecipient.profileId;
+  }
 
   try {
     const res = await messagingSdk.getMessageEvents(params);
@@ -145,6 +158,25 @@ export async function queryMessageEvents(
     };
   } catch (err) {
     logger.error({ err }, "queryMessageEvents failed");
+    throw err;
+  }
+}
+
+export async function getEventsByMessageId(
+  messagingSdk: Messaging,
+  logger: FastifyBaseLogger,
+  messageId: string,
+): Promise<MessageHistoryEvent[]> {
+  try {
+    const res = await messagingSdk.getEventsForMessage(messageId);
+    if (res.error) {
+      const detail = res.error.detail || "Failed to get events for message";
+      throw createError.BadGateway(detail);
+    }
+
+    return res.data;
+  } catch (err) {
+    logger.error({ err }, "getEventsByMessageId failed");
     throw err;
   }
 }

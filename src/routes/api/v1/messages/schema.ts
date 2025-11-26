@@ -1,4 +1,4 @@
-import { Type } from "typebox";
+import { type Static, Type } from "typebox";
 import { getGenericResponseSchema } from "../../../../schemas/generic-response.js";
 import { HttpError } from "../../../../schemas/http-error.js";
 import {
@@ -67,6 +67,8 @@ const MessageEventSchema = Type.Object(
   },
 );
 
+export type MessageEvent = Static<typeof MessageEventSchema>;
+
 const MessageStatus = {
   Delivered: "delivered",
   Scheduled: "scheduled",
@@ -116,15 +118,111 @@ export const getLatestEventForMessagesRouteSchema = {
 
 // GET /v1/messages/:messageId/events
 
+const MessageHistoryEventSchema = Type.Object({
+  messageId: Type.String({ format: "uuid", description: "Message id" }),
+  eventType: Type.String({ description: "Event type description" }),
+  eventStatus: Type.String({ description: "Status for event type" }),
+  data: Type.Union([
+    // Create data
+    Type.Object({
+      messageId: Type.String({
+        description: "Unique id of the related message",
+      }),
+      receiverFullName: Type.String({
+        description: "Full name of the recipient",
+      }),
+      receiverPPSN: Type.String({
+        description: "PPSN of the recipient",
+      }),
+      receiverUserId: Type.String({ description: "User id of recipient" }),
+      subject: Type.String({ description: "Subject of the related message" }),
+      language: Type.String({
+        description: "Language of the related message",
+      }),
+      excerpt: Type.Optional(
+        Type.String({ description: "Excerpt of the related message" }),
+      ),
+      richText: Type.Optional(
+        Type.String({
+          description: "Rich text content of the related message",
+        }),
+      ),
+      plainText: Type.String({
+        description: "Plain text context of the related message",
+      }),
+      threadName: Type.Optional(
+        Type.String({
+          description: "Thread name of the related message",
+        }),
+      ),
+      transports: Type.Array(Type.String(), {
+        description: "Selected transports to send the message",
+      }),
+      scheduledAt: Type.String({
+        format: "date-time",
+        description:
+          "Date and time which describes when the message has to be sent",
+      }),
+      senderUserId: Type.Optional(
+        Type.String({
+          description: "Unique user id of the sender",
+        }),
+      ),
+      senderFullName: Type.Optional(
+        Type.String({
+          description: "Full name of the sender",
+        }),
+      ),
+      senderPPSN: Type.Optional(
+        Type.String({
+          description: "PPSN of the sender",
+        }),
+      ),
+      senderApplicationId: Type.Optional(
+        Type.String({
+          description: "Unique id of the M2M application that sent the message",
+        }),
+      ),
+      organisationName: Type.String({
+        description: "Organisation related to the sender",
+      }),
+      security: Type.Enum(["public", "confidential"], {
+        description:
+          "Security classification of the message: 'public' to show the original message in the sent email, 'confidential' to show the content only after login in MessagingIE",
+        examples: ["confidential"],
+      }),
+    }),
+    // Schedule data
+    Type.Object({
+      messageId: Type.String({
+        description: "Unique id of the related message",
+      }),
+      jobId: Type.String({ description: "Unique id of the job" }),
+    }),
+    // Error data
+    Type.Object({
+      messageId: Type.String({
+        description: "Unique id of the related message",
+      }),
+    }),
+  ]),
+  createdAt: Type.String({
+    format: "date-time",
+    description:
+      "Date and time which describes when the event has been recorded",
+  }),
+});
+
+export type MessageHistoryEvent = Static<typeof MessageHistoryEventSchema>;
+
 export const getMessageHistoryRouteSchema = {
   tags: ["messages"],
-  querystring: PaginationParamsSchema,
   description: "Get complete event history for a message",
   params: Type.Object({
     messageId: Type.String({ format: "uuid" }),
   }),
   response: {
-    200: getGenericResponseSchema(Type.Array(MessageEventSchema)),
+    200: getGenericResponseSchema(Type.Array(MessageHistoryEventSchema)),
     401: HttpError,
     403: HttpError,
     404: HttpError,

@@ -1,11 +1,7 @@
 import type { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
-import { queryMessageEvents } from "../../../../services/messaging-service.js";
+import { getEventsByMessageId } from "../../../../services/messaging-service.js";
 import { requirePublicServant } from "../../../../utils/auth-helpers.js";
 import { sendNotFound } from "../../../../utils/error-responses.js";
-import {
-  formatAPIResponse,
-  sanitizePagination,
-} from "../../../../utils/pagination.js";
 import type {
   FastifyReplyTypebox,
   FastifyRequestTypebox,
@@ -37,24 +33,18 @@ const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
       reply: FastifyReplyTypebox<typeof getMessageHistoryRouteSchema>,
     ) => {
       const { messageId } = request.params;
-      const query = request.query;
-      const sanitized = sanitizePagination(query);
 
       const authResponse = requirePublicServant(request, reply);
       if (!authResponse) return;
 
-      const result = await queryMessageEvents(
+      const result = await getEventsByMessageId(
         fastify.getMessagingSdk(authResponse.token),
         request.log,
-        {
-          messageId,
-          limit: sanitized.limit,
-          offset: sanitized.offset,
-        },
+        messageId,
       );
 
       // If no events found, return 404
-      if (!result.data || result.data.length === 0) {
+      if (!result || result.length === 0) {
         sendNotFound(
           reply,
           request.id,
@@ -63,14 +53,7 @@ const getEventsForMessage: FastifyPluginAsyncTypebox = async (fastify) => {
         return;
       }
 
-      const response = formatAPIResponse({
-        data: result.data,
-        totalCount: result.totalCount,
-        request,
-        config: fastify.config,
-      });
-
-      reply.status(200).send(response);
+      reply.status(200).send({ data: result });
     },
   );
 };

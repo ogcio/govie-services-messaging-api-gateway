@@ -114,9 +114,28 @@ export async function lookupRecipient(
   };
 }
 
-// Factory retained for consistency (could expose higher-level abstractions later)
-export function createProfileService() {
+export async function getProfileById(
+  profileSdk: Profile,
+  profileId: string,
+): Promise<RecipientLookupResult> {
+  const getResult = await profileSdk.getProfile(profileId);
+
+  if (getResult.error) {
+    const { statusCode, detail } = getResult.error;
+    if (statusCode === 404) {
+      throw createError.NotFound("Profile not found in profile system");
+    }
+    throw createError(statusCode || 502, detail || "Profile retrieval failed");
+  }
+
+  if (!getResult.data) {
+    throw createError.NotFound("Profile not found in profile system");
+  }
+
   return {
-    lookupRecipient,
+    profileId: getResult.data.id,
+    email: getResult.data.email,
+    firstName: getResult.data.details?.firstName,
+    lastName: getResult.data.details?.lastName,
   };
 }
