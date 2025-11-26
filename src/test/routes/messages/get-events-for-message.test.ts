@@ -70,11 +70,10 @@ describe("GET /v1/messages/:messageId/events integration", () => {
     ];
     messagingSdk.getMessageEvents.mockResolvedValueOnce({
       data: events,
-      metadata: { totalCount: 2 },
     });
     const res = await app.inject({
       method: "GET",
-      url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
+      url: `/api/v1/messages/${messageId}/events`,
     });
     expect(res.statusCode).toBe(200);
     const payload = res.json();
@@ -82,18 +81,16 @@ describe("GET /v1/messages/:messageId/events integration", () => {
     expect(payload.data.length).toBe(2);
     expect(payload.data[0].eventType).toBe("email_sent");
     expect(payload.data[1].eventType).toBe("email_delivered");
-    expect(payload.metadata.totalCount).toBe(2);
   });
 
   it("returns 404 for non-existent messageId", async () => {
     const messageId = randomUUID();
     messagingSdk.getMessageEvents.mockResolvedValueOnce({
       data: [],
-      metadata: { totalCount: 0 },
     });
     const res = await app.inject({
       method: "GET",
-      url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
+      url: `/api/v1/messages/${messageId}/events`,
     });
     expect(res.statusCode).toBe(404);
     const payload = res.json();
@@ -112,7 +109,7 @@ describe("GET /v1/messages/:messageId/events integration", () => {
       // Remove userData for this request
       const res = await noTokenApp.inject({
         method: "GET",
-        url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
+        url: `/api/v1/messages/${messageId}/events`,
         headers: {},
       });
 
@@ -134,7 +131,7 @@ describe("GET /v1/messages/:messageId/events integration", () => {
       messagingSdk.getMessageEvents.mockRejectedValueOnce({ statusCode: 403 });
       const res = await noOrgApp.inject({
         method: "GET",
-        url: `/api/v1/messages/${messageId}/events?limit=10&offset=0`,
+        url: `/api/v1/messages/${messageId}/events`,
       });
 
       expect(res.statusCode).toBe(403);

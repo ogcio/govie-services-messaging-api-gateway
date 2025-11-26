@@ -118,7 +118,6 @@ export const getLatestEventForMessagesRouteSchema = {
 
 export const getMessageHistoryRouteSchema = {
   tags: ["messages"],
-  querystring: PaginationParamsSchema,
   description: "Get complete event history for a message",
   params: Type.Object({
     messageId: Type.String({ format: "uuid" }),

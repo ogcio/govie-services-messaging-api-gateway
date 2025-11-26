@@ -102,18 +102,12 @@ describe("Message Routes - Contract Tests (Phase 2)", () => {
   // T087: Contract test for history schema correctness
   it("history schema validates required fields and response structure", () => {
     const paramsSchema = messagingRouteSchemas.getMessageHistory.params;
-    const querySchema = messagingRouteSchemas.getMessageHistory.querystring;
     const responseSchema =
       messagingRouteSchemas.getMessageHistory.response[200];
 
     // Verify params schema has messageId
     expect(paramsSchema).toBeDefined();
     expect(paramsSchema.properties).toHaveProperty("messageId");
-
-    // Verify querystring has pagination params
-    expect(querySchema).toBeDefined();
-    expect(querySchema.properties).toHaveProperty("limit");
-    expect(querySchema.properties).toHaveProperty("offset");
 
     // Verify 200 response schema structure
     expect(responseSchema).toBeDefined();

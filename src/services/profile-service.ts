@@ -139,10 +139,3 @@ export async function getProfileById(
     lastName: getResult.data.details?.lastName,
   };
 }
-
-// Factory retained for consistency (could expose higher-level abstractions later)
-export function createProfileService() {
-  return {
-    lookupRecipient,
-  };
-}

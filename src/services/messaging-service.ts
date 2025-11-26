@@ -161,3 +161,22 @@ export async function queryMessageEvents(
     throw err;
   }
 }
+
+export async function getEventsByMessageId(
+  messagingSdk: Messaging,
+  logger: FastifyBaseLogger,
+  messageId: string,
+): Promise<MessageEventRecord[]> {
+  try {
+    const res = await messagingSdk.getMessageEvents({ messageId });
+    if (res.error) {
+      const detail = res.error.detail || "Failed to get events for message";
+      throw createError.BadGateway(detail);
+    }
+
+    return res.data;
+  } catch (err) {
+    logger.error({ err }, "getEventsByMessageId failed");
+    throw err;
+  }
+}
