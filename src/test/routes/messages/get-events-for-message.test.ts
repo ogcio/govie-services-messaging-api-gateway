@@ -77,7 +77,7 @@ describe("GET /v1/messages/:messageId/events integration", () => {
       method: "GET",
       url: `/api/v1/messages/${messageId}/events`,
     });
-    console.log({ GIANNI: res.body });
+
     expect(res.statusCode).toBe(200);
     const payload = res.json();
     expect(Array.isArray(payload.data)).toBe(true);
