@@ -25,7 +25,7 @@
     "@fastify/type-provider-typebox": "^6.1.0",
     "@fastify/under-pressure": "^9.0.3",
     "@ogcio/api-auth": "^5.2.1",
-    "@ogcio/building-blocks-sdk": "^0.2.68",
+    "@ogcio/building-blocks-sdk": "^0.2.69",
     "@ogcio/fastify-error-handler": "^5.2.1",
     "@ogcio/fastify-logging-wrapper": "^5.3.0",
     "@ogcio/o11y-sdk-node": "^0.6.2",
@@ -36,16 +36,16 @@
     "jose": "^6.1.2",
     "http-errors": "^2.0.1",
     "postgrator": "^8.0.0",
-    "typebox": "^1.0.56"
+    "typebox": "^1.0.58"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.7",
+    "@biomejs/biome": "^2.3.8",
     "@commitlint/config-conventional": "^20.0.0",
     "@types/http-errors": "^2.0.5",
     "@vitest/coverage-v8": "^4.0.14",
     "commitlint": "^20.1.0",
     "husky": "^9.1.7",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.14"
   },
