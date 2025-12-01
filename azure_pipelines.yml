@@ -13,6 +13,7 @@ parameters:
   - name: buildBranches
     type: object
     # default: ["dev", "uat", "prod"]
+    displayName: List of branches that will push Docker artifacts.
     default: ["dev"]
 
   - name: validEnvironments
@@ -24,6 +25,7 @@ parameters:
   - name: vmImage
     type: string
     default: "ubuntu-22.04"
+    displayName: Virtual machine image (OS) to use for build agents
 
 variables:
   - name: pushArtefacts
@@ -38,13 +40,13 @@ variables:
     value: ${{ eq('prod', variables['Build.SourceBranchName']) }}
   # Dynamic variable group selection based on branch
   - ${{ if eq(variables['Build.SourceBranchName'], 'dev') }}:
-    - group: messaging-api-gateway-dev
+      - group: messaging-api-gateway-dev
   - ${{ elseif eq(variables['Build.SourceBranchName'], 'uat') }}:
-    - group: messaging-api-gateway-uat
+      - group: messaging-api-gateway-uat
   - ${{ elseif eq(variables['Build.SourceBranchName'], 'prod') }}:
-    - group: messaging-api-gateway-prod
+      - group: messaging-api-gateway-prod
   - ${{ elseif and(ne(variables['Build.SourceBranchName'], 'dev'), ne(variables['Build.SourceBranchName'], 'uat'), ne(variables['Build.SourceBranchName'], 'prod')) }}:
-    - group: messaging-api-gateway-dev
+      - group: messaging-api-gateway-dev
 
 resources:
   repositories:
@@ -62,12 +64,11 @@ resources:
 stages:
   - stage: setup
     displayName: Setup Dependencies
-    dependsOn: []
+    pool:
+      vmImage: ${{ parameters.vmImage }}
     jobs:
       - job: SetupDependencies
         displayName: Setup pnpm and Install Dependencies
-        pool:
-          vmImage: ${{ parameters.vmImage }}
         steps:
           - template: tools/install-pnpm.yml@pipeline-templates
   - stage: securityScan
@@ -96,10 +97,20 @@ stages:
         dependsOn:
           - securityScan
         jobs:
-          - template: test/pnpm_unit_test.yml@pipeline-templates
-            parameters:
-              serviceName: ${{ serviceName }}
-              testPath: "./apps/"
+          - job: UnitTests
+            steps:
+              - template: tools/install-pnpm.yml@pipeline-templates
+                parameters:
+                  nodeVersion: "22.x"
+              - task: CmdLine@2
+                displayName: "Run unit tests for ${{ serviceName }}"
+                inputs:
+                  script: pnpm run test --allowOnly
+              - task: PublishTestResults@2
+                inputs:
+                  testResultsFiles: "results.xml"
+                  testRunTitle: "Unit test results for ${{ serviceName }}:$(Build.BuildId)"
+                condition: succeededOrFailed()
       - stage: Build_${{ replace(serviceName, '-', '_') }}
         displayName: Build ${{ serviceName }}
         pool:
@@ -110,7 +121,6 @@ stages:
             parameters:
               serviceName: ${{ serviceName }}
               pushArtefacts: true
-              dockerfile: apps/${{ serviceName }}/Dockerfile
       - stage: Scan_${{ replace(serviceName, '-', '_') }}
         displayName: Scan ${{ serviceName }}
         pool:
@@ -124,7 +134,7 @@ stages:
               awsServiceConnection: ${{ variables.awsServiceConnection }}
               dockerImageName: ${{ serviceName }}
               dockerImageTag: $(Build.BuildId)
-              trivyIgnoreFilePath: '.trivyignore'
+              trivyIgnoreFilePath: ".trivyignore"
       - stage: Push_${{ replace(serviceName, '-', '_') }}
         displayName: Push ${{ serviceName }} to ECR
         pool:
