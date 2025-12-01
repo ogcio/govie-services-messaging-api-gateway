@@ -58,11 +58,6 @@ resources:
       name: ogcio/messaging-api-gateway-k8s-apps
       ref: main
       endpoint: ogcio
-    - repository: messaging-api-gateway-parser-k8s-apps
-      type: github
-      name: ogcio/messaging-api-gateway-parser-k8s-apps
-      ref: main
-      endpoint: ogcio
 
 stages:
   - stage: setup
