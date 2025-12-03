@@ -1,0 +1,103 @@
+{
+  "3f55726c6afd0f0cc721f3f5c6588d96_0": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:41Z"
+  },
+  "566254e29e1e83f8e1bd666973785d49_0": {
+    "author": "Samuele Salvatico",
+    "comment": "Swagger image",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:05:33Z"
+  },
+  "7dcf3ed4618c05abd3ea6264b56c7028_0": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:51Z"
+  },
+  "7dcf3ed4618c05abd3ea6264b56c7028_1": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:52Z"
+  },
+  "7dcf3ed4618c05abd3ea6264b56c7028_2": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:53Z"
+  },
+  "b26d426ec022e10cdf7c09706cf9a5a9_0": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:54Z"
+  },
+  "b26d426ec022e10cdf7c09706cf9a5a9_1": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:13:10Z"
+  },
+  "b26d426ec022e10cdf7c09706cf9a5a9_2": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:13:33Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_0": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:43Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_1": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:44Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_2": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:45Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_3": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:45Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_4": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:46Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_5": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:47Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_6": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:48Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_7": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:49Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_8": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:50Z"
+  },
+  "c73dd44f175e7ea13c138c67349619b4_9": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:12:51Z"
+  },
+  "de90b5a7f6f5ad3688d9bb80d65f19c7_0": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:13:43Z"
+  },
+  "eac71a1966e5b825ae1929431e6b1205_0": {
+    "author": "Samuele Salvatico",
+    "false_positive": true,
+    "ignored_at": "2025-12-03T10:06:59Z"
+  }
+}
